@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YtAlgoRebel</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app-container">
+    <header class="glass-header">
+      <div class="logo">
+        <span class="rebel-icon">叛</span>
+        <h1>YtAlgo<span class="highlight">Rebel</span></h1>
+      </div>
+      <div class="header-actions">
+        <button id="tab-home" class="tab-btn active" title="Home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        </button>
+        <button id="tab-settings" class="tab-btn" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="content-area">
+      <!-- Home Tab -->
+      <section id="view-home" class="view-section active">
+        <!-- Find Videos Button -->
+        <button id="find-videos-btn" class="find-btn">
+          <svg class="find-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <span class="find-text">Find Videos</span>
+        </button>
+
+        <!-- Mode indicator -->
+        <div class="mode-indicator">
+          <span id="mode-label" class="mode-label">⚡ Keyword Mode</span>
+          <label class="switch switch-sm" title="Toggle AI Mode for deeper semantic matching">
+            <input type="checkbox" id="ai-toggle" />
+            <span class="slider round"></span>
+          </label>
+          <span class="mode-ai-label">🧠 AI</span>
+        </div>
+
+        <!-- AI Warning Card -->
+        <div id="ai-warning-card" class="warning-card hidden">
+          <div class="warning-icon">⚠️</div>
+          <div class="warning-content">
+            <strong>AI Embeddings Not Synced</strong>
+            <p>You enabled AI Mode but your taste profile doesn't have AI embeddings yet. Go to settings, check "Sync AI Embeddings" and click sync.</p>
+          </div>
+        </div>
+
+        <!-- Scoring Progress Status -->
+        <div id="score-status" class="status-card hidden">
+          <div class="status-msg" id="score-status-msg">Scoring videos...</div>
+          <div class="progress-container">
+            <div class="progress-bar" id="score-progress-bar" style="width: 0%;"></div>
+          </div>
+          <div class="status-count"><span id="score-progress">0</span> / <span id="score-total">0</span></div>
+        </div>
+
+        <!-- Results header (hidden until results) -->
+        <div class="list-header hidden" id="results-header">
+          <h2>Top Picks for You</h2>
+          <span class="badge" id="results-badge">0 found</span>
+        </div>
+        
+        <!-- Video results list -->
+        <div class="video-list" id="video-list">
+          <div class="empty-state" id="empty-state">
+            <div class="empty-icon">🔍</div>
+            <p>Click <strong>Find Videos</strong> to scan the current YouTube page and discover your top picks.</p>
+            <p class="empty-hint">Make sure you've synced your Taste Profile in Settings first!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings Tab -->
+      <section id="view-settings" class="view-section hidden">
+        <div class="settings-card glass-card">
+          <h2>Taste Profile</h2>
+          <p class="settings-desc">Scrape your History, Liked, Watch Later & Disliked videos to calibrate scoring.</p>
+          
+          <!-- DB Stats Grid -->
+          <div id="db-stats" class="db-stats-container">
+            <div class="no-profile">Loading profile stats...</div>
+          </div>
+          
+          <div class="form-group style-toggle-group">
+            <label class="switch switch-sm" title="Scan My Activity for dislikes">
+              <input type="checkbox" id="scan-dislikes-toggle" />
+              <span class="slider round"></span>
+            </label>
+            <span style="font-size: 0.85rem; color: var(--text-main);">Scan My Activity for dislikes</span>
+          </div>
+
+          <div class="form-group style-toggle-group" style="margin-top: 0.5rem; margin-bottom: 1rem;">
+            <label class="switch switch-sm" title="Sync AI Embeddings (Required for AI Mode)">
+              <input type="checkbox" id="sync-ai-toggle" />
+              <span class="slider round"></span>
+            </label>
+            <span style="font-size: 0.85rem; color: var(--text-main);">Sync AI Embeddings (Slow, ~90MB download)</span>
+          </div>
+          
+          <button id="sync-btn" class="btn-secondary">Sync Taste Profile</button>
+          
+          <div id="sync-status" class="status-card hidden" style="margin-top: 1rem;">
+            <div class="status-msg" id="sync-status-msg">Syncing database...</div>
+            <div class="progress-container">
+              <div class="progress-bar" id="sync-progress-bar" style="width: 0%;"></div>
+            </div>
+            <div class="status-count"><span id="sync-progress">0</span> / <span id="sync-total">0</span></div>
+            <div class="sync-warning" style="margin-top: 0.6rem; font-size: 0.75rem; color: hsl(348, 83%, 75%); text-align: center; line-height: 1.3;">
+              ⚠️ Keep this popup open during sync to prevent interruption.
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-card glass-card">
+          <h2>Scoring Weights</h2>
+          <p class="settings-desc">Control how much watched, liked, watch later, and disliked videos weight in recommendations.</p>
+          
+          <div class="form-group">
+            <div class="slider-header">
+              <label>Watch History Weight</label>
+              <span class="slider-value" id="history-weight-value">0.50</span>
+            </div>
+            <input type="range" id="history-weight" min="0" max="1" step="0.05" value="0.50" class="glass-slider" />
+            <div class="slider-labels">
+              <span>Ignore</span>
+              <span>Strong</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="slider-header">
+              <label>Watch Later Weight</label>
+              <span class="slider-value" id="wl-weight-value">0.50</span>
+            </div>
+            <input type="range" id="wl-weight" min="0" max="1" step="0.05" value="0.50" class="glass-slider" />
+            <div class="slider-labels">
+              <span>Ignore</span>
+              <span>Strong</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="slider-header">
+              <label>Liked / Disliked Bonus</label>
+              <span class="slider-value" id="liked-bonus-value">+0.50</span>
+            </div>
+            <input type="range" id="liked-bonus" min="-1" max="1" step="0.05" value="0.50" class="glass-slider slider-bipolar" />
+            <div class="slider-labels">
+              <span>👎 −1.0</span>
+              <span>Neutral</span>
+              <span>👍 +1.0</span>
+            </div>
+            <p class="slider-hint">Liked videos get <strong id="liked-display">+0.50</strong> bonus, disliked get <strong id="disliked-display">−0.50</strong> penalty</p>
+          </div>
+        </div>
+
+        <div class="settings-card glass-card">
+          <h2>AI Backend Configuration</h2>
+          <p class="settings-desc">Optional: choose an AI provider for semantic matching (requires AI toggle on).</p>
+          
+          <div class="form-group">
+            <div class="radio-group">
+              <label class="radio-option">
+                <input type="radio" name="ai-backend" value="local" checked />
+                <span class="radio-custom"></span>
+                <span class="radio-text">Local (Transformers.js)</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="ai-backend" value="ollama" />
+                <span class="radio-custom"></span>
+                <span class="radio-text">Ollama (Local Server)</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="ai-backend" value="openai" />
+                <span class="radio-custom"></span>
+                <span class="radio-text">OpenAI Compatible (Remote)</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-group" id="ollama-settings" style="display:none">
+            <label for="ollama-url">Ollama Endpoint URL</label>
+            <input type="text" id="ollama-url" class="glass-input" value="http://localhost:11434" />
+            <label for="ollama-model" style="margin-top: 0.5rem; display: block;">Ollama Model Name</label>
+            <input type="text" id="ollama-model" class="glass-input" value="mxbai-embed-large:latest" placeholder="e.g. mxbai-embed-large:latest" />
+          </div>
+
+          <div class="form-group" id="openai-settings" style="display:none">
+            <label for="openai-url">API Endpoint URL</label>
+            <input type="text" id="openai-url" class="glass-input" value="https://api.openai.com/v1" />
+            <label for="openai-key" style="margin-top: 0.5rem; display: block;">API Key</label>
+            <input type="password" id="openai-key" class="glass-input" placeholder="sk-..." />
+            <label for="openai-model" style="margin-top: 0.5rem; display: block;">Model Name</label>
+            <input type="text" id="openai-model" class="glass-input" value="text-embedding-3-small" placeholder="e.g. text-embedding-3-small" />
+          </div>
+
+          <button id="save-settings" class="btn-primary">Save Settings</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
