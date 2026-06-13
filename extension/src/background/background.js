@@ -155,7 +155,7 @@ function getWeights() {
  * If no YouTube tab is open, opens a temporary background tab to execute the scraping,
  * and closes it when done.
  */
-async function executeScrapeInTab() {
+async function executeScrapeInTab(customPlaylists) {
   return new Promise((resolve, reject) => {
     chrome.tabs.query({ url: '*://*.youtube.com/*' }, async (tabs) => {
       let tabId = null;
@@ -196,7 +196,7 @@ async function executeScrapeInTab() {
       }
 
       // Send message to the tab to execute scrapeTasteData
-      chrome.tabs.sendMessage(tabId, { type: 'RUN_TASTE_SCRAPE' }, (response) => {
+      chrome.tabs.sendMessage(tabId, { type: 'RUN_TASTE_SCRAPE', customPlaylists }, (response) => {
         const lastError = chrome.runtime.lastError;
         
         // Clean up temporary tab if we created one
@@ -225,16 +225,20 @@ async function executeScrapeInTab() {
 async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
   chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: 'Connecting to YouTube page for scraping...' }).catch(() => {});
   
+  const customPlaylists = await new Promise(resolve => {
+    chrome.storage.local.get(['customPlaylists'], (res) => resolve(res.customPlaylists || []));
+  });
+
   let scrapedData;
   try {
-    scrapedData = await executeScrapeInTab();
+    scrapedData = await executeScrapeInTab(customPlaylists);
   } catch (err) {
     console.error("YtAlgoRebel: Failed to scrape via tab context", err);
     chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: `Scrape failed: ${err.message}` }).catch(() => {});
     return false;
   }
 
-  const { historyEntries, likesEntries, dislikesEntries: playlistDislikes, wlEntries } = scrapedData;
+  const { historyEntries, likesEntries, dislikesEntries: playlistDislikes, wlEntries, customPlaylistsData: scrapedCustomPlaylists } = scrapedData;
   
   const normalizeTitle = (str) => {
     if (!str) return '';
@@ -325,14 +329,31 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
     likesCount: likesEntries.length,
     dislikesCount: dislikesEntries.length,
     wlCount: wlEntries.length,
+    customPlaylistsData: [],
     lastSync: Date.now()
   };
   
+  if (scrapedCustomPlaylists) {
+    for (const pl of scrapedCustomPlaylists) {
+      profile.customPlaylistsData.push({
+        playlistId: pl.id,
+        count: pl.entries.length,
+        keywordMap: buildKeywordMap(pl.entries),
+        embeddings: [],
+        entries: pl.entries
+      });
+    }
+  }
+  
   // ── AI embeddings (opt-in) ──
   if (useAI) {
-    const allEntries = [...historyEntries, ...likesEntries, ...dislikesEntries, ...wlEntries];
+    let allEntriesLength = historyEntries.length + likesEntries.length + dislikesEntries.length + wlEntries.length;
+    if (profile.customPlaylistsData) {
+      profile.customPlaylistsData.forEach(pl => allEntriesLength += pl.entries.length);
+    }
+    
     let processed = 0;
-    const total = allEntries.length;
+    const total = allEntriesLength;
     
     const onDownloadProgress = (data) => {
       if (data.status === 'progress' || data.status === 'downloading') {
@@ -384,11 +405,33 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
       processed++;
       if (progressCallback) progressCallback(processed, total);
     }
+
+    // Custom playlists embeddings
+    if (profile.customPlaylistsData) {
+      for (const pl of profile.customPlaylistsData) {
+        for (const entry of pl.entries) {
+          try {
+            const emb = await generateEmbeddings(entry.title, onDownloadProgress);
+            if (emb) pl.embeddings.push(emb);
+          } catch (e) { console.warn("Failed embedding", entry.title); }
+          processed++;
+          if (progressCallback) progressCallback(processed, total);
+        }
+      }
+    }
   } else {
-    const total = historyEntries.length + likesEntries.length + dislikesEntries.length + wlEntries.length;
+    let total = historyEntries.length + likesEntries.length + dislikesEntries.length + wlEntries.length;
+    if (profile.customPlaylistsData) {
+      profile.customPlaylistsData.forEach(pl => total += pl.entries.length);
+    }
     if (progressCallback) progressCallback(total, total);
   }
   
+  // Cleanup temp entries array
+  if (profile.customPlaylistsData) {
+    profile.customPlaylistsData.forEach(pl => delete pl.entries);
+  }
+
   await putItem('tasteMatrix', profile);
   return true;
 }
@@ -461,14 +504,22 @@ async function findTopVideos(pageVideos, useAI = false) {
   const weights = await getWeights();
   const { historyWeight, likedBonus, wlWeight } = weights;
   
+  const { filterMusicVideos, customPlaylists } = await new Promise(resolve => {
+    chrome.storage.local.get(['filterMusicVideos', 'customPlaylists'], (res) => resolve({
+      filterMusicVideos: res.filterMusicVideos || false,
+      customPlaylists: res.customPlaylists || []
+    }));
+  });
+  
   const {
     historyKeywordMap, likesKeywordMap, dislikesKeywordMap, wlKeywordMap,
     historyTitles,
     historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings
   } = profile;
   
-  // Filter out already watched videos
+  // Filter out already watched videos and music videos if setting enabled
   const unwatchedVideos = pageVideos.filter(v => {
+    if (filterMusicVideos && v.isMusic) return false;
     const normalizedTitle = v.title.toLowerCase().trim();
     return !historyTitles.includes(normalizedTitle);
   });
@@ -495,13 +546,15 @@ async function findTopVideos(pageVideos, useAI = false) {
         score = scoreVideoAI(
           emb, vid.title,
           historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings || [],
-          historyWeight, likedBonus, wlWeight
+          historyWeight, likedBonus, wlWeight,
+          profile.customPlaylistsData || [], customPlaylists
         );
       } else {
         score = scoreVideoKeywords(
           vid.title, vid.channel || '',
           historyKeywordMap || {}, likesKeywordMap || {}, dislikesKeywordMap || {}, wlKeywordMap || {},
-          historyWeight, likedBonus, wlWeight
+          historyWeight, likedBonus, wlWeight,
+          profile.customPlaylistsData || [], customPlaylists
         );
       }
       

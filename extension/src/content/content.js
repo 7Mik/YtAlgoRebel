@@ -59,10 +59,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   
   if (message.type === 'RUN_TASTE_SCRAPE') {
     console.log("YtAlgoRebel Content Script: RUN_TASTE_SCRAPE message received");
+    const customPlaylists = message.customPlaylists || [];
     getInnerTubeConfigFromMainWorld()
       .then(config => {
         console.log("YtAlgoRebel Content Script: InnerTube config obtained from page:", config);
-        return scrapeTasteData(config);
+        return scrapeTasteData(config, customPlaylists);
       })
       .then(data => {
         console.log("YtAlgoRebel Content Script: Taste data scraped successfully", data);
@@ -79,6 +80,60 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     highlightVideosOnPage(message.videos);
   }
 });
+
+/**
+ * Helper to determine if a video element is likely a music video.
+ * Checks channel names, title keywords, and official artist channel badges.
+ */
+function isMusicVideo(el, title, channel) {
+  const channelLower = channel.toLowerCase();
+  if (channelLower.endsWith(' - topic') || channelLower.endsWith('vevo')) {
+    return true;
+  }
+  
+  const titleLower = title.toLowerCase();
+  const musicKeywords = [
+    'official music video',
+    'official video',
+    'official audio',
+    'lyric video',
+    'lyrics video',
+    'official lyric video',
+    'music video',
+    'official mv',
+    'videoclip',
+    'video oficial',
+    'official visualizer',
+    'visualizer video'
+  ];
+  if (musicKeywords.some(keyword => titleLower.includes(keyword))) {
+    return true;
+  }
+  
+  // Filter auto-generated YouTube Mixes
+  if (titleLower.startsWith('mix - ') || titleLower.includes('il tuo mix') || titleLower.includes('my mix') || titleLower.includes('youtube mix')) {
+    return true;
+  }
+  
+  if (el) {
+    const artistBadge = el.querySelector('.badge-style-type-verified-artist, ytd-badge-supported-renderer[class*="verified-artist"], [aria-label="Official Artist Channel"], [title="Official Artist Channel"]');
+    if (artistBadge) return true;
+    
+    // Check for SVGs with music-note icon
+    const svgs = el.querySelectorAll('svg');
+    for (const svg of svgs) {
+      const path = svg.querySelector('path');
+      if (path) {
+        const d = path.getAttribute('d') || '';
+        if (d.includes('M12 3v10.55') || d.includes('M12,3v10.55') || d.includes('m12 3') || d.includes('M12 3v13.55')) {
+          return true;
+        }
+      }
+    }
+  }
+  
+  return false;
+}
 
 /**
  * Scrape ALL video elements from the entire DOM (not just the viewport).
@@ -129,7 +184,10 @@ function scrapeAllVideosFromDOM() {
         const thumbEl = el.querySelector('img.yt-core-image, ytd-thumbnail img, img');
         const thumbnail = thumbEl ? (thumbEl.getAttribute('src') || '') : '';
         
-        videos.push({ id, title, channel, thumbnail });
+        // Music Video Detection
+        const isMusic = isMusicVideo(el, title, channel);
+        
+        videos.push({ id, title, channel, thumbnail, isMusic });
       } catch (e) {
         // Skip malformed elements
       }

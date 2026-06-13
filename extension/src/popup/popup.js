@@ -215,8 +215,83 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load saved weights and checkboxes
   const scanDislikesToggle = document.getElementById('scan-dislikes-toggle');
   const syncAIToggle = document.getElementById('sync-ai-toggle');
+  const filterMusicToggle = document.getElementById('filter-music-toggle');
   
-  chrome.storage.local.get(['historyWeight', 'wlWeight', 'likedBonus', 'scanDislikes', 'syncAI'], (result) => {
+  // ── Settings: Custom Playlists ──
+  const playlistsContainer = document.getElementById('custom-playlists-container');
+  const addPlaylistBtn = document.getElementById('add-playlist-btn');
+  let customPlaylists = [];
+
+  function renderCustomPlaylists() {
+    if (!playlistsContainer) return;
+    playlistsContainer.innerHTML = '';
+    if (customPlaylists.length === 0) {
+      playlistsContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center;">No custom playlists added yet.</p>';
+      return;
+    }
+
+    customPlaylists.forEach((playlist, index) => {
+      const weightString = playlist.weight >= 0 ? '+' + parseFloat(playlist.weight).toFixed(2) : parseFloat(playlist.weight).toFixed(2);
+      
+      const row = document.createElement('div');
+      row.className = 'custom-playlist-row';
+      row.dataset.index = index;
+      row.innerHTML = `
+        <div class="playlist-row-header">
+          <input type="text" class="glass-input playlist-url" placeholder="Playlist Link or ID" value="${escapeHtml(playlist.url || '')}" />
+          <button class="btn-delete-playlist" title="Remove playlist">×</button>
+        </div>
+        <div class="form-group" style="margin-top: 0.5rem; margin-bottom: 0;">
+          <div class="slider-header">
+            <label style="font-size: 0.8rem; color: var(--text-muted);">Playlist Weight</label>
+            <span class="slider-value playlist-weight-value" style="font-size: 0.8rem;">${weightString}</span>
+          </div>
+          <input type="range" class="glass-slider slider-bipolar playlist-weight" min="-1" max="1" step="0.05" value="${playlist.weight !== undefined ? playlist.weight : 0.5}" />
+          <div class="slider-labels" style="border: none; padding-top: 0.2rem; margin-top: 0.2rem;">
+            <span>Malus −1.0</span>
+            <span>Neutral</span>
+            <span>Bonus +1.0</span>
+          </div>
+        </div>
+      `;
+
+      // Event listeners
+      const urlInput = row.querySelector('.playlist-url');
+      urlInput.addEventListener('input', (e) => {
+        customPlaylists[index].url = e.target.value.trim();
+      });
+
+      const weightInput = row.querySelector('.playlist-weight');
+      const weightVal = row.querySelector('.playlist-weight-value');
+      weightInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        customPlaylists[index].weight = val;
+        weightVal.textContent = val >= 0 ? '+' + val.toFixed(2) : val.toFixed(2);
+        if (val > 0) weightVal.style.color = 'hsl(145, 63%, 52%)';
+        else if (val < 0) weightVal.style.color = 'hsl(348, 83%, 57%)';
+        else weightVal.style.color = 'var(--text-muted)';
+      });
+      // Initial color
+      weightInput.dispatchEvent(new Event('input'));
+
+      const deleteBtn = row.querySelector('.btn-delete-playlist');
+      deleteBtn.addEventListener('click', () => {
+        customPlaylists.splice(index, 1);
+        renderCustomPlaylists();
+      });
+
+      playlistsContainer.appendChild(row);
+    });
+  }
+
+  if (addPlaylistBtn) {
+    addPlaylistBtn.addEventListener('click', () => {
+      customPlaylists.push({ url: '', weight: 0.5 });
+      renderCustomPlaylists();
+    });
+  }
+
+  chrome.storage.local.get(['historyWeight', 'wlWeight', 'likedBonus', 'scanDislikes', 'syncAI', 'filterMusicVideos', 'customPlaylists'], (result) => {
     if (result.historyWeight !== undefined) {
       historySlider.value = result.historyWeight;
       historyValue.textContent = parseFloat(result.historyWeight).toFixed(2);
@@ -235,7 +310,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (result.syncAI !== undefined && syncAIToggle) {
       syncAIToggle.checked = result.syncAI;
     }
+    if (result.filterMusicVideos !== undefined && filterMusicToggle) {
+      filterMusicToggle.checked = result.filterMusicVideos;
+    }
+    if (result.customPlaylists !== undefined) {
+      customPlaylists = result.customPlaylists;
+    }
+    renderCustomPlaylists();
   });
+
+  if (filterMusicToggle) {
+    filterMusicToggle.addEventListener('change', (e) => {
+      chrome.storage.local.set({ filterMusicVideos: e.target.checked });
+    });
+  }
 
   historySlider.addEventListener('input', (e) => {
     historyValue.textContent = parseFloat(e.target.value).toFixed(2);
@@ -301,6 +389,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedBackend = document.querySelector('input[name="ai-backend"]:checked').value;
     const scanDislikes = scanDislikesToggle ? scanDislikesToggle.checked : false;
     const syncAI = syncAIToggle ? syncAIToggle.checked : false;
+    const filterMusic = filterMusicToggle ? filterMusicToggle.checked : false;
+    
+    // Clean up empty playlists before saving
+    customPlaylists = customPlaylists.filter(pl => pl.url && pl.url.trim() !== '');
+    renderCustomPlaylists();
     
     chrome.storage.local.set({
       historyWeight: parseFloat(historySlider.value),
@@ -315,7 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
       openAIUrl: document.getElementById('openai-url').value,
       openAIModel: document.getElementById('openai-model').value,
       scanDislikes: scanDislikes,
-      syncAI: syncAI
+      syncAI: syncAI,
+      filterMusicVideos: filterMusic,
+      customPlaylists: customPlaylists
     }, () => {
       const originalText = saveBtn.innerText;
       saveBtn.innerText = '✓ Saved!';
@@ -377,6 +472,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const profile = await getItem('tasteMatrix', 'master');
       if (profile) {
         const lastSyncStr = new Date(profile.lastSync).toLocaleString();
+        let playlistsStatsHtml = '';
+        if (profile.customPlaylistsData && profile.customPlaylistsData.length > 0) {
+          playlistsStatsHtml = '<div class="custom-playlists-stats" style="margin-top: 0.8rem; border-top: 1px solid var(--surface-border); padding-top: 0.8rem; font-size: 0.8rem; color: var(--text-muted);">';
+          playlistsStatsHtml += '<div style="font-weight: 600; margin-bottom: 0.4rem; color: var(--text-main);">Custom Playlists Synced:</div>';
+          profile.customPlaylistsData.forEach(pl => {
+            playlistsStatsHtml += `<div class="stats-item-custom" style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
+              <span title="${escapeHtml(pl.playlistId)}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 60%;">ID: ${escapeHtml(pl.playlistId)}</span>
+              <strong>${pl.count || 0} videos</strong>
+            </div>`;
+          });
+          playlistsStatsHtml += '</div>';
+        }
+
         statsEl.innerHTML = `
           <div class="stats-grid">
             <div class="stats-item"><strong>Watched:</strong> ${profile.historyCount || 0}</div>
@@ -384,6 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="stats-item"><strong>Watch Later:</strong> ${profile.wlCount || 0}</div>
             <div class="stats-item"><strong>Disliked:</strong> ${profile.dislikesCount || 0}</div>
           </div>
+          ${playlistsStatsHtml}
           <div class="last-sync">Last Synced: ${lastSyncStr}</div>
         `;
         checkAiWarning(profile);

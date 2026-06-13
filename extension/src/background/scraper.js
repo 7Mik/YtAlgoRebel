@@ -371,7 +371,7 @@ async function fetchInnerTubeFeed(apiKey, clientVersion, idToken, browseId, limi
  * First attempts using InnerTube API for paginated data retrieval (up to 500 items),
  * falling back to single-request HTML scraping if needed.
  */
-export async function scrapeTasteData(injectedConfig) {
+export async function scrapeTasteData(injectedConfig, customPlaylists = []) {
     let historyEntries = [];
     let likesEntries = [];
     let wlEntries = [];
@@ -457,5 +457,42 @@ export async function scrapeTasteData(injectedConfig) {
 
     console.log(`YtAlgoRebel: Final synced counts — ${historyEntries.length} history, ${likesEntries.length} liked, ${wlEntries.length} watch later, ${dislikesEntries.length} disliked`);
 
-    return { historyEntries, likesEntries, dislikesEntries, wlEntries };
+    // Scrape custom playlists
+    const customPlaylistsData = [];
+    for (const pl of customPlaylists) {
+        if (!pl.url) continue;
+        const match = pl.url.match(/[&?]list=([^&]+)/);
+        const playlistId = match ? match[1] : pl.url.trim();
+        if (!playlistId) continue;
+
+        const browseId = playlistId.startsWith('VL') ? playlistId : 'VL' + playlistId;
+        console.log(`YtAlgoRebel: Scraping custom playlist ${playlistId}...`);
+        
+        let entries = [];
+        if (apiKey) {
+            entries = await fetchInnerTubeFeed(apiKey, clientVersion, idToken, browseId, limit);
+        }
+        
+        if (entries.length === 0) {
+            console.log(`YtAlgoRebel: InnerTube custom playlist empty, falling back to HTML for ${playlistId}`);
+            const data = await fetchYtInitialData(`https://www.youtube.com/playlist?list=${playlistId}`);
+            if (data) {
+                entries = extractVideoEntries(data);
+                if (entries.length < limit) {
+                    const token = findContinuationToken(data);
+                    if (token && apiKey) {
+                        const more = await fetchInnerTubeContinuation(apiKey, clientVersion, idToken, token, limit - entries.length);
+                        entries.push(...more);
+                    }
+                }
+            }
+        }
+        
+        customPlaylistsData.push({
+            id: playlistId,
+            entries: entries.slice(0, limit)
+        });
+    }
+
+    return { historyEntries, likesEntries, dislikesEntries, wlEntries, customPlaylistsData };
 }

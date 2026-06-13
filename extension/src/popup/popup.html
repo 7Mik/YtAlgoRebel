@@ -42,6 +42,14 @@
           <span class="mode-ai-label">🧠 AI</span>
         </div>
 
+        <div class="mode-indicator" style="margin-top: 0.5rem; justify-content: center; gap: 8px;">
+          <span style="font-size: 0.85rem; color: var(--text-main);">Filter Music:</span>
+          <label class="switch switch-sm" title="Filter out music videos from recommendations">
+            <input type="checkbox" id="filter-music-toggle" />
+            <span class="slider round"></span>
+          </label>
+        </div>
+
         <!-- AI Warning Card -->
         <div id="ai-warning-card" class="warning-card hidden">
           <div class="warning-icon">⚠️</div>
@@ -100,7 +108,7 @@
               <input type="checkbox" id="sync-ai-toggle" />
               <span class="slider round"></span>
             </label>
-            <span style="font-size: 0.85rem; color: var(--text-main);">Sync AI Embeddings (Slow, ~90MB download)</span>
+            <span style="font-size: 0.85rem; color: var(--text-main);">Sync AI Embeddings (Slow)</span>
           </div>
           
           <button id="sync-btn" class="btn-secondary">Sync Taste Profile</button>
@@ -161,6 +169,18 @@
         </div>
 
         <div class="settings-card glass-card">
+          <h2>Custom Playlists</h2>
+          <p class="settings-desc">Add custom YouTube playlists to give them a bonus or penalty score compared to watched videos.</p>
+          
+          <div id="custom-playlists-container" class="custom-playlists-list">
+            <!-- Dynamically populated rows -->
+          </div>
+          
+          <button id="add-playlist-btn" class="btn-secondary" style="margin-top: 1rem;">+ Add Custom Playlist</button>
+        </div>
+
+        <div class="settings-card glass-card">
+
           <h2>AI Backend Configuration</h2>
           <p class="settings-desc">Optional: choose an AI provider for semantic matching (requires AI toggle on).</p>
           

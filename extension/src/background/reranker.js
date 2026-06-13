@@ -102,7 +102,7 @@ function keywordAffinity(videoTitle, videoChannel, keywordMap) {
  * @param {number} likedBonus    - slider value for liked bonus (-1 to +1, default +0.5)
  * @returns {number} score between -1 and 1
  */
-export function scoreVideoKeywords(videoTitle, videoChannel, historyMap, likesMap, dislikesMap, wlMap, historyWeight = 0.5, likedBonus = 0.5, wlWeight = 0.5) {
+export function scoreVideoKeywords(videoTitle, videoChannel, historyMap, likesMap, dislikesMap, wlMap, historyWeight = 0.5, likedBonus = 0.5, wlWeight = 0.5, customPlaylistsData = [], customPlaylistsConfig = []) {
     const histAffinity = keywordAffinity(videoTitle, videoChannel, historyMap);
     const likesAffinity = keywordAffinity(videoTitle, videoChannel, likesMap);
     const dislikesAffinity = keywordAffinity(videoTitle, videoChannel, dislikesMap);
@@ -117,6 +117,17 @@ export function scoreVideoKeywords(videoTitle, videoChannel, historyMap, likesMa
               + (likesAffinity * likedBonus)
               + (wlAffinity * wlWeight)
               - (dislikesAffinity * Math.abs(likedBonus));
+
+    // Add custom playlists keyword score
+    if (customPlaylistsData.length > 0 && customPlaylistsConfig.length > 0) {
+        for (const plData of customPlaylistsData) {
+            const configPl = customPlaylistsConfig.find(p => p.url && (p.url.includes(plData.playlistId) || plData.playlistId.includes(p.url)));
+            if (configPl && configPl.weight !== undefined && plData.keywordMap && Object.keys(plData.keywordMap).length > 0) {
+                const plAffinity = keywordAffinity(videoTitle, videoChannel, plData.keywordMap);
+                score += plAffinity * parseFloat(configPl.weight);
+            }
+        }
+    }
 
     score -= computeClickbaitPenalty(videoTitle);
 
@@ -166,7 +177,7 @@ function maxSimilarity(vec, embeddings) {
  * @param {number} likedBonus
  * @returns {number} score between -1 and 1
  */
-export function scoreVideoAI(videoEmbedding, videoTitle, historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings, historyWeight = 0.5, likedBonus = 0.5, wlWeight = 0.5) {
+export function scoreVideoAI(videoEmbedding, videoTitle, historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings, historyWeight = 0.5, likedBonus = 0.5, wlWeight = 0.5, customPlaylistsData = [], customPlaylistsConfig = []) {
     if (!videoEmbedding) return 0;
 
     const histSim = maxSimilarity(videoEmbedding, historyEmbeddings);
@@ -178,6 +189,17 @@ export function scoreVideoAI(videoEmbedding, videoTitle, historyEmbeddings, like
               + (likesSim * likedBonus)
               + (wlSim * wlWeight)
               - (dislikesSim * Math.abs(likedBonus));
+
+    // Add custom playlists AI score
+    if (customPlaylistsData.length > 0 && customPlaylistsConfig.length > 0) {
+        for (const plData of customPlaylistsData) {
+            const configPl = customPlaylistsConfig.find(p => p.url && (p.url.includes(plData.playlistId) || plData.playlistId.includes(p.url)));
+            if (configPl && configPl.weight !== undefined && plData.embeddings && plData.embeddings.length > 0) {
+                const plAffinity = maxSimilarity(videoEmbedding, plData.embeddings);
+                score += plAffinity * parseFloat(configPl.weight);
+            }
+        }
+    }
 
     score -= computeClickbaitPenalty(videoTitle);
 
