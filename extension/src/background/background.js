@@ -162,7 +162,7 @@ async function executeScrapeInTab(customPlaylists) {
       let isTempTab = false;
 
       // Filter tabs that are fully loaded and have http/https protocol
-      const ytTabs = tabs.filter(t => t.url && t.url.startsWith('http'));
+      const ytTabs = tabs.filter(t => t.url && t.url.startsWith('http') && t.status === 'complete' && !t.discarded);
 
       if (ytTabs.length > 0) {
         // Use the first available YouTube tab
@@ -179,15 +179,41 @@ async function executeScrapeInTab(customPlaylists) {
           isTempTab = true;
 
           // Wait for the tab to load
-          await new Promise((resolveLoad) => {
+          await new Promise((resolveLoad, rejectLoad) => {
+            let timeoutId;
+            let resolvedOrRejected = false;
+
+            function cleanup() {
+              if (resolvedOrRejected) return;
+              resolvedOrRejected = true;
+              chrome.tabs.onUpdated.removeListener(onTabUpdated);
+              chrome.tabs.onRemoved.removeListener(onTabRemoved);
+              if (timeoutId) clearTimeout(timeoutId);
+            }
+
             function onTabUpdated(updatedTabId, changeInfo) {
               if (updatedTabId === tabId && changeInfo.status === 'complete') {
-                chrome.tabs.onUpdated.removeListener(onTabUpdated);
+                cleanup();
                 // Give the content script a moment to load and register the message listener
                 setTimeout(resolveLoad, 2000);
               }
             }
+
+            function onTabRemoved(removedTabId) {
+              if (removedTabId === tabId) {
+                cleanup();
+                rejectLoad(new Error("Temporary tab was closed before it finished loading."));
+              }
+            }
+
             chrome.tabs.onUpdated.addListener(onTabUpdated);
+            chrome.tabs.onRemoved.addListener(onTabRemoved);
+
+            // 15 seconds safety timeout
+            timeoutId = setTimeout(() => {
+              cleanup();
+              rejectLoad(new Error("Timeout waiting for temporary tab to load."));
+            }, 15000);
           });
         } catch (err) {
           reject(new Error("Failed to create temporary YouTube tab for scraping: " + err.message));
@@ -456,7 +482,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }).then(success => {
         chrome.runtime.sendMessage({ type: 'SYNC_COMPLETE', success }).catch(() => {});
     });
-    return true;
   }
   
   // ── Find Top Videos from the current page ──
@@ -480,7 +505,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         videos: videos
       }).catch(() => {});
     }
-    return true;
   }
   
   // ── Reserved for inject.js API interception ──
