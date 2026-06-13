@@ -32,6 +32,33 @@ YouTube's algorithm prioritizes engagement and watch time. This creates a feed s
 3. **The Reranker:** New videos are embedded via `Xenova/all-MiniLM-L6-v2` and scored against your matrix using Cosine Similarity.
 4. **The Render:** The default YouTube feed is stripped and replaced with the pure, reranked, AI-curated UI.
 
+## 📂 Project Structure
+
+```text
+YtAlgoRebel/
+├── extension/             # Extension source files
+│   ├── manifest.json      # Extension configuration (Manifest V3)
+│   └── src/               # Source code
+│       ├── background/    # Background scripts (Service Worker)
+│       │   ├── background.js # Coordinates extension messaging & tabs
+│       │   ├── ai.js         # Embedding generator (WASM transformers.js / Ollama / OpenAI)
+│       │   ├── reranker.js   # Scoring engine & Clickbait penalty heuristics
+│       │   └── scraper.js    # InnerTube crawler & Google My Activity dislikes scraper
+│       ├── content/       # Content scripts running in DOM pages
+│       │   ├── content.js    # Isolated script: DOM scraper & video highlighter
+│       │   └── inject.js     # Main-world script: overrides fetch/XHR to intercept payloads
+│       ├── popup/         # Extension popup dashboard interface
+│       │   ├── popup.html    # Clean Glassmorphism dashboard layout
+│       │   ├── popup.css     # UI Styling (modern dark mode)
+│       │   └── popup.js      # Controller script for dashboard interactions
+│       └── utils/         # Helper functions
+│           └── db.js         # IndexedDB database manager
+├── dist/                  # Built assets folder loaded into Chrome (generated)
+├── webpack.config.js      # Webpack bundler configuration
+├── package.json           # Node dependencies & build script definitions
+└── README.md              # Project overview & documentation
+```
+
 ## 🚀 Installation
 
 ### Prerequisites
