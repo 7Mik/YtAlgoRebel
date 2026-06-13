@@ -50,4 +50,29 @@
     });
     return originalXHRSend.apply(this, [body]);
   };
+
+  // Listen for config requests from content script
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    if (event.data && event.data.type === 'YT_ALGO_REBEL_GET_CONFIG') {
+      let apiKey = '';
+      let clientVersion = '';
+      let idToken = '';
+      
+      try {
+        if (window.ytcfg) {
+          apiKey = window.ytcfg.data_?.INNERTUBE_API_KEY || window.ytcfg.get?.('INNERTUBE_API_KEY') || '';
+          clientVersion = window.ytcfg.data_?.INNERTUBE_CLIENT_VERSION || window.ytcfg.get?.('INNERTUBE_CLIENT_VERSION') || '';
+          idToken = window.ytcfg.data_?.ID_TOKEN || window.ytcfg.get?.('ID_TOKEN') || '';
+        }
+      } catch (e) {
+        console.error('YtAlgoRebel: Error reading ytcfg', e);
+      }
+      
+      window.postMessage({
+        type: 'YT_ALGO_REBEL_SEND_CONFIG',
+        config: { apiKey, clientVersion, idToken }
+      }, '*');
+    }
+  });
 })();

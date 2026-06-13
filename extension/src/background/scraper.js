@@ -32,6 +32,35 @@ async function fetchYtInitialData(url) {
     return null;
 }
 
+function getSapisidFromCookie() {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(/__Secure-3PAPISID=([^;]+)/) || 
+                  document.cookie.match(/__Secure-1PAPISID=([^;]+)/) ||
+                  document.cookie.match(/SAPISID=([^;]+)/);
+    return match ? match[1] : null;
+}
+
+async function getSApiSidHash(sapisid, origin = 'https://www.youtube.com') {
+    if (!sapisid) return null;
+    try {
+        const timestamp = Math.floor(Date.now() / 1000);
+        const input = `${timestamp} ${sapisid} ${origin}`;
+        
+        const encoder = new TextEncoder();
+        const data = encoder.encode(input);
+        const buffer = await crypto.subtle.digest('SHA-1', data);
+        
+        const hash = Array.from(new Uint8Array(buffer))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+            
+        return `${timestamp}_${hash}`;
+    } catch (e) {
+        console.error("YtAlgoRebel: Failed to generate SAPISIDHASH", e);
+        return null;
+    }
+}
+
 /**
  * Extract video entries with both title and channel name from ytInitialData JSON.
  * Returns an array of { title, channel } objects.
@@ -139,10 +168,19 @@ function getFallbackClientVersion() {
 
 let cachedApiKey = null;
 let cachedClientVersion = null;
+let cachedIdToken = null;
 
-async function getInnerTubeConfig() {
-    if (cachedApiKey && cachedClientVersion) {
-        return { apiKey: cachedApiKey, clientVersion: cachedClientVersion };
+async function getInnerTubeConfig(injectedConfig) {
+    if (cachedApiKey && cachedClientVersion && cachedIdToken) {
+        return { apiKey: cachedApiKey, clientVersion: cachedClientVersion, idToken: cachedIdToken };
+    }
+
+    if (injectedConfig && injectedConfig.apiKey) {
+        cachedApiKey = injectedConfig.apiKey;
+        cachedClientVersion = injectedConfig.clientVersion;
+        cachedIdToken = injectedConfig.idToken;
+        console.log(`YtAlgoRebel: Config received from main world — Key: success, Version: ${cachedClientVersion}, Token: ${cachedIdToken ? 'success' : 'failed'}`);
+        return { apiKey: cachedApiKey, clientVersion: cachedClientVersion, idToken: cachedIdToken };
     }
 
     try {
@@ -152,6 +190,7 @@ async function getInnerTubeConfig() {
 
         const apiKeyMatch = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/);
         const clientVersionMatch = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/);
+        const idTokenMatch = html.match(/"ID_TOKEN":"([^"]+)"/);
 
         if (apiKeyMatch && apiKeyMatch[1]) {
             cachedApiKey = apiKeyMatch[1];
@@ -159,8 +198,11 @@ async function getInnerTubeConfig() {
         if (clientVersionMatch && clientVersionMatch[1]) {
             cachedClientVersion = clientVersionMatch[1];
         }
+        if (idTokenMatch && idTokenMatch[1]) {
+            cachedIdToken = idTokenMatch[1];
+        }
 
-        console.log(`YtAlgoRebel: Extracted API Key: ${cachedApiKey ? 'success' : 'failed'}, Client Version: ${cachedClientVersion ? 'success' : 'failed'} (${cachedClientVersion})`);
+        console.log(`YtAlgoRebel: Extracted Config from HTML — Key: ${cachedApiKey ? 'success' : 'failed'}, Version: ${cachedClientVersion}, Token: ${cachedIdToken ? 'success' : 'failed'}`);
     } catch (e) {
         console.warn("YtAlgoRebel: Failed to extract InnerTube config from HTML", e);
     }
@@ -170,7 +212,7 @@ async function getInnerTubeConfig() {
         console.log(`YtAlgoRebel: Using fallback client version: ${cachedClientVersion}`);
     }
 
-    return { apiKey: cachedApiKey, clientVersion: cachedClientVersion };
+    return { apiKey: cachedApiKey, clientVersion: cachedClientVersion, idToken: cachedIdToken };
 }
 
 /**
@@ -195,20 +237,31 @@ function findContinuationToken(obj) {
 /**
  * Fetch more entries from InnerTube using continuation tokens, up to a limit.
  */
-async function fetchInnerTubeContinuation(apiKey, clientVersion, initialToken, limit) {
+async function fetchInnerTubeContinuation(apiKey, clientVersion, idToken, initialToken, limit) {
     const entries = [];
     let continuationToken = initialToken;
 
     try {
         while (continuationToken && entries.length < limit) {
             console.log(`YtAlgoRebel: Paginating InnerTube using continuation token, target remaining: ${limit - entries.length}`);
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-Youtube-Client-Name': '1',
+                'X-Youtube-Client-Version': clientVersion
+            };
+            if (idToken) {
+                headers['X-Youtube-Identity-Token'] = idToken;
+            }
+            const sapisid = getSapisidFromCookie();
+            if (sapisid) {
+                const authHash = await getSApiSidHash(sapisid, 'https://www.youtube.com');
+                if (authHash) {
+                    headers['Authorization'] = `SAPISIDHASH ${authHash}`;
+                }
+            }
             const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${apiKey}&prettyPrint=false`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Youtube-Client-Name': '1',
-                    'X-Youtube-Client-Version': clientVersion
-                },
+                headers: headers,
                 credentials: 'include',
                 body: JSON.stringify({
                     context: {
@@ -230,6 +283,9 @@ async function fetchInnerTubeContinuation(apiKey, clientVersion, initialToken, l
             }
 
             const data = await response.json();
+            if (data.errors) {
+                console.warn(`YtAlgoRebel: InnerTube continuation returned errors:`, JSON.stringify(data.errors));
+            }
             const pageEntries = extractVideoEntries(data);
             entries.push(...pageEntries);
             console.log(`YtAlgoRebel: InnerTube pagination page returned ${pageEntries.length} entries (Total: ${entries.length})`);
@@ -246,17 +302,28 @@ async function fetchInnerTubeContinuation(apiKey, clientVersion, initialToken, l
 /**
  * Fetch feed entries from the InnerTube API, paginating with continuation tokens.
  */
-async function fetchInnerTubeFeed(apiKey, clientVersion, browseId, limit = 500) {
+async function fetchInnerTubeFeed(apiKey, clientVersion, idToken, browseId, limit = 500) {
     const entries = [];
     try {
         console.log(`YtAlgoRebel: InnerTube fetch starting for ${browseId}`);
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Youtube-Client-Name': '1',
+            'X-Youtube-Client-Version': clientVersion
+        };
+        if (idToken) {
+            headers['X-Youtube-Identity-Token'] = idToken;
+        }
+        const sapisid = getSapisidFromCookie();
+        if (sapisid) {
+            const authHash = await getSApiSidHash(sapisid, 'https://www.youtube.com');
+            if (authHash) {
+                headers['Authorization'] = `SAPISIDHASH ${authHash}`;
+            }
+        }
         const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${apiKey}&prettyPrint=false`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Youtube-Client-Name': '1',
-                'X-Youtube-Client-Version': clientVersion
-            },
+            headers: headers,
             credentials: 'include',
             body: JSON.stringify({
                 context: {
@@ -278,6 +345,9 @@ async function fetchInnerTubeFeed(apiKey, clientVersion, browseId, limit = 500) 
         }
 
         const data = await response.json();
+        if (data.errors) {
+            console.warn(`YtAlgoRebel: InnerTube ${browseId} returned errors:`, JSON.stringify(data.errors));
+        }
         const pageEntries = extractVideoEntries(data);
         entries.push(...pageEntries);
         console.log(`YtAlgoRebel: InnerTube ${browseId} initial page returned ${pageEntries.length} entries`);
@@ -285,7 +355,7 @@ async function fetchInnerTubeFeed(apiKey, clientVersion, browseId, limit = 500) 
         if (entries.length < limit) {
             const continuationToken = findContinuationToken(data);
             if (continuationToken) {
-                const more = await fetchInnerTubeContinuation(apiKey, clientVersion, continuationToken, limit - entries.length);
+                const more = await fetchInnerTubeContinuation(apiKey, clientVersion, idToken, continuationToken, limit - entries.length);
                 entries.push(...more);
             }
         }
@@ -301,22 +371,23 @@ async function fetchInnerTubeFeed(apiKey, clientVersion, browseId, limit = 500) 
  * First attempts using InnerTube API for paginated data retrieval (up to 500 items),
  * falling back to single-request HTML scraping if needed.
  */
-export async function scrapeTasteData() {
+export async function scrapeTasteData(injectedConfig) {
     let historyEntries = [];
     let likesEntries = [];
     let wlEntries = [];
     let dislikesEntries = [];
     const limit = 500;
 
-    const config = await getInnerTubeConfig();
+    const config = await getInnerTubeConfig(injectedConfig);
     const apiKey = config.apiKey;
     const clientVersion = config.clientVersion;
+    const idToken = config.idToken;
 
     if (apiKey) {
         // Fetch via InnerTube browse endpoints
-        historyEntries = await fetchInnerTubeFeed(apiKey, clientVersion, 'FEhistory', limit);
-        likesEntries = await fetchInnerTubeFeed(apiKey, clientVersion, 'VLLL', limit);
-        wlEntries = await fetchInnerTubeFeed(apiKey, clientVersion, 'VLWL', limit);
+        historyEntries = await fetchInnerTubeFeed(apiKey, clientVersion, idToken, 'FEhistory', limit);
+        likesEntries = await fetchInnerTubeFeed(apiKey, clientVersion, idToken, 'VLLL', limit);
+        wlEntries = await fetchInnerTubeFeed(apiKey, clientVersion, idToken, 'VLWL', limit);
     }
 
     // HTML Fallbacks if InnerTube fails or returns empty lists
@@ -328,7 +399,7 @@ export async function scrapeTasteData() {
             if (historyEntries.length < limit) {
                 const token = findContinuationToken(historyData);
                 if (token && apiKey) {
-                    const more = await fetchInnerTubeContinuation(apiKey, clientVersion, token, limit - historyEntries.length);
+                    const more = await fetchInnerTubeContinuation(apiKey, clientVersion, idToken, token, limit - historyEntries.length);
                     historyEntries.push(...more);
                 }
             }
@@ -343,7 +414,7 @@ export async function scrapeTasteData() {
             if (likesEntries.length < limit) {
                 const token = findContinuationToken(likesData);
                 if (token && apiKey) {
-                    const more = await fetchInnerTubeContinuation(apiKey, clientVersion, token, limit - likesEntries.length);
+                    const more = await fetchInnerTubeContinuation(apiKey, clientVersion, idToken, token, limit - likesEntries.length);
                     likesEntries.push(...more);
                 }
             }
@@ -358,7 +429,7 @@ export async function scrapeTasteData() {
             if (wlEntries.length < limit) {
                 const token = findContinuationToken(wlData);
                 if (token && apiKey) {
-                    const more = await fetchInnerTubeContinuation(apiKey, clientVersion, token, limit - wlEntries.length);
+                    const more = await fetchInnerTubeContinuation(apiKey, clientVersion, idToken, token, limit - wlEntries.length);
                     wlEntries.push(...more);
                 }
             }
@@ -372,7 +443,7 @@ export async function scrapeTasteData() {
         if (dislikesEntries.length < limit) {
             const token = findContinuationToken(dislikesData);
             if (token && apiKey) {
-                const more = await fetchInnerTubeContinuation(apiKey, clientVersion, token, limit - dislikesEntries.length);
+                const more = await fetchInnerTubeContinuation(apiKey, clientVersion, idToken, token, limit - dislikesEntries.length);
                 dislikesEntries.push(...more);
             }
         }

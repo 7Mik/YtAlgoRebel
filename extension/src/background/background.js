@@ -151,11 +151,90 @@ function getWeights() {
 }
 
 /**
+ * Executes the InnerTube scraping function inside the content script of a YouTube tab.
+ * If no YouTube tab is open, opens a temporary background tab to execute the scraping,
+ * and closes it when done.
+ */
+async function executeScrapeInTab() {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.query({ url: '*://*.youtube.com/*' }, async (tabs) => {
+      let tabId = null;
+      let isTempTab = false;
+
+      // Filter tabs that are fully loaded and have http/https protocol
+      const ytTabs = tabs.filter(t => t.url && t.url.startsWith('http'));
+
+      if (ytTabs.length > 0) {
+        // Use the first available YouTube tab
+        tabId = ytTabs[0].id;
+        console.log(`YtAlgoRebel: Reusing existing YouTube tab ${tabId} for scraping`);
+      } else {
+        // Create a temporary YouTube tab
+        console.log("YtAlgoRebel: No YouTube tab found. Creating temporary tab for scraping...");
+        try {
+          const tempTab = await new Promise((resolveTab) => {
+            chrome.tabs.create({ url: 'https://www.youtube.com', active: false }, resolveTab);
+          });
+          tabId = tempTab.id;
+          isTempTab = true;
+
+          // Wait for the tab to load
+          await new Promise((resolveLoad) => {
+            function onTabUpdated(updatedTabId, changeInfo) {
+              if (updatedTabId === tabId && changeInfo.status === 'complete') {
+                chrome.tabs.onUpdated.removeListener(onTabUpdated);
+                // Give the content script a moment to load and register the message listener
+                setTimeout(resolveLoad, 2000);
+              }
+            }
+            chrome.tabs.onUpdated.addListener(onTabUpdated);
+          });
+        } catch (err) {
+          reject(new Error("Failed to create temporary YouTube tab for scraping: " + err.message));
+          return;
+        }
+      }
+
+      // Send message to the tab to execute scrapeTasteData
+      chrome.tabs.sendMessage(tabId, { type: 'RUN_TASTE_SCRAPE' }, (response) => {
+        const lastError = chrome.runtime.lastError;
+        
+        // Clean up temporary tab if we created one
+        if (isTempTab && tabId) {
+          chrome.tabs.remove(tabId).catch(() => {});
+        }
+
+        if (lastError) {
+          console.error("YtAlgoRebel: Error sending message to YouTube tab", lastError);
+          reject(new Error("Failed to communicate with YouTube page. Make sure you have an active YouTube page open or reload your current YouTube tab. Details: " + lastError.message));
+        } else if (response && response.success) {
+          console.log("YtAlgoRebel: Scraping completed successfully in tab context");
+          resolve(response.data);
+        } else {
+          reject(new Error(response?.error || 'Unknown error during scraping inside YouTube page'));
+        }
+      });
+    });
+  });
+}
+
+/**
  * Build the taste profile from history, likes, and dislikes.
  * Always builds keyword maps (instant). Optionally builds AI embeddings.
  */
 async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
-  const { historyEntries, likesEntries, dislikesEntries: playlistDislikes, wlEntries } = await scrapeTasteData();
+  chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: 'Connecting to YouTube page for scraping...' }).catch(() => {});
+  
+  let scrapedData;
+  try {
+    scrapedData = await executeScrapeInTab();
+  } catch (err) {
+    console.error("YtAlgoRebel: Failed to scrape via tab context", err);
+    chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: `Scrape failed: ${err.message}` }).catch(() => {});
+    return false;
+  }
+
+  const { historyEntries, likesEntries, dislikesEntries: playlistDislikes, wlEntries } = scrapedData;
   
   const normalizeTitle = (str) => {
     if (!str) return '';
@@ -178,7 +257,8 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
   
   // If opted in, scrape My Activity page for more signal
   if (scanDislikes) {
-    chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: 'Scanning My Activity for dislikes...' }).catch(() => {});
+    chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: 'Scanning Google My Activity for dislikes (recent videos)...' }).catch(() => {});
+    console.log("YtAlgoRebel: Extracting dislikes only from videos watched in the safe zone (recent history).");
     const myActivityEntries = await scrapeMyActivityDislikes();
     
     const existingDislikesNormalized = new Set(dislikesEntries.map(e => normalizeTitle(e.title)));

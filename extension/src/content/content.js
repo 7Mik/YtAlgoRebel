@@ -1,8 +1,11 @@
+import { scrapeTasteData } from '../background/scraper.js';
+
 // content.js — Runs in isolated world on YouTube pages
 // Responsibilities:
 // 1. Inject the API hook script (inject.js) into the main world
 // 2. Scrape ALL video elements from the DOM when requested
 // 3. Highlight top-scored videos with a glowing border
+// 4. Run InnerTube scraper in page context to bypass CORS
 
 // ── Inject the hook script ──
 function injectScript(file_path, node) {
@@ -26,12 +29,50 @@ window.addEventListener('message', (event) => {
   }
 });
 
+function getInnerTubeConfigFromMainWorld() {
+  return new Promise((resolve) => {
+    const handler = (event) => {
+      if (event.source !== window) return;
+      if (event.data && event.data.type === 'YT_ALGO_REBEL_SEND_CONFIG') {
+        window.removeEventListener('message', handler);
+        resolve(event.data.config);
+      }
+    };
+    window.addEventListener('message', handler);
+    window.postMessage({ type: 'YT_ALGO_REBEL_GET_CONFIG' }, '*');
+    
+    // Safety timeout: fallback to empty/null config if no response in 2 seconds
+    setTimeout(() => {
+      window.removeEventListener('message', handler);
+      resolve(null);
+    }, 2000);
+  });
+}
+
 // ── Listen for messages from background/popup ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'SCRAPE_PAGE_VIDEOS') {
     const videos = scrapeAllVideosFromDOM();
     sendResponse({ videos });
     return true;
+  }
+  
+  if (message.type === 'RUN_TASTE_SCRAPE') {
+    console.log("YtAlgoRebel Content Script: RUN_TASTE_SCRAPE message received");
+    getInnerTubeConfigFromMainWorld()
+      .then(config => {
+        console.log("YtAlgoRebel Content Script: InnerTube config obtained from page:", config);
+        return scrapeTasteData(config);
+      })
+      .then(data => {
+        console.log("YtAlgoRebel Content Script: Taste data scraped successfully", data);
+        sendResponse({ success: true, data });
+      })
+      .catch(err => {
+        console.error("YtAlgoRebel Content Script: Taste data scrape failed", err);
+        sendResponse({ success: false, error: err.message || String(err) });
+      });
+    return true; // Keep message channel open for async response
   }
   
   if (message.type === 'HIGHLIGHT_VIDEOS') {
