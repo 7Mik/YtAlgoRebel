@@ -155,7 +155,7 @@ function getWeights() {
  * If no YouTube tab is open, opens a temporary background tab to execute the scraping,
  * and closes it when done.
  */
-async function executeScrapeInTab(customPlaylists) {
+async function executeScrapeInTab(customPlaylists, syncLimit) {
   return new Promise((resolve, reject) => {
     chrome.tabs.query({ url: '*://*.youtube.com/*' }, async (tabs) => {
       let tabId = null;
@@ -225,7 +225,7 @@ async function executeScrapeInTab(customPlaylists) {
       }
 
       // Send message to the tab to execute scrapeTasteData
-      chrome.tabs.sendMessage(tabId, { type: 'RUN_TASTE_SCRAPE', customPlaylists }, (response) => {
+      chrome.tabs.sendMessage(tabId, { type: 'RUN_TASTE_SCRAPE', customPlaylists, syncLimit }, (response) => {
         const lastError = chrome.runtime.lastError;
         
         // Clean up temporary tab if we created one
@@ -251,7 +251,7 @@ async function executeScrapeInTab(customPlaylists) {
  * Build the taste profile from history, likes, and dislikes.
  * Always builds keyword maps (instant). Optionally builds AI embeddings.
  */
-async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
+async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallback) {
   chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: 'Connecting to YouTube page for scraping...' }).catch(() => {});
   
   const customPlaylists = await new Promise(resolve => {
@@ -260,7 +260,7 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
 
   let scrapedData;
   try {
-    scrapedData = await executeScrapeInTab(customPlaylists);
+    scrapedData = await executeScrapeInTab(customPlaylists, syncLimit);
   } catch (err) {
     console.error("YtAlgoRebel: Failed to scrape via tab context", err);
     chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: `Scrape failed: ${err.message}` }).catch(() => {});
@@ -495,7 +495,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'SYNC_TASTE_MATRIX') {
     const useAI = message.useAI || false;
     const scanDislikes = message.scanDislikes || false;
-    buildTasteProfile(useAI, scanDislikes, (current, total) => {
+    const syncLimit = message.syncLimit || 500;
+    buildTasteProfile(useAI, scanDislikes, syncLimit, (current, total) => {
         chrome.runtime.sendMessage({ type: 'SYNC_PROGRESS', current, total }).catch(() => {});
     }).then(success => {
         chrome.runtime.sendMessage({ type: 'SYNC_COMPLETE', success }).catch(() => {});

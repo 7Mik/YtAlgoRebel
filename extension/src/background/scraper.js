@@ -371,12 +371,11 @@ async function fetchInnerTubeFeed(apiKey, clientVersion, idToken, browseId, limi
  * First attempts using InnerTube API for paginated data retrieval (up to 500 items),
  * falling back to single-request HTML scraping if needed.
  */
-export async function scrapeTasteData(injectedConfig, customPlaylists = []) {
+export async function scrapeTasteData(injectedConfig, customPlaylists = [], limit = 500) {
     let historyEntries = [];
     let likesEntries = [];
     let wlEntries = [];
     let dislikesEntries = [];
-    const limit = 500;
 
     const config = await getInnerTubeConfig(injectedConfig);
     const apiKey = config.apiKey;
@@ -452,7 +451,7 @@ export async function scrapeTasteData(injectedConfig, customPlaylists = []) {
     const customPlaylistsData = [];
     for (const pl of customPlaylists) {
         if (!pl.url) continue;
-        const match = pl.url.match(/[&?]list=([a-zA-Z0-9_-]+)(?=&|#|$)/);
+        const match = pl.url.match(/[&?]list=([a-zA-Z0-9_-]+)/);
         const playlistId = match ? match[1] : pl.url.trim();
         if (!playlistId || !/^[a-zA-Z0-9_-]+$/.test(playlistId)) {
             console.warn("YtAlgoRebel: Invalid playlist ID/URL skipped: " + pl.url);

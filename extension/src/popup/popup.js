@@ -211,6 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const likedValue = document.getElementById('liked-bonus-value');
   const likedDisplay = document.getElementById('liked-display');
   const dislikedDisplay = document.getElementById('disliked-display');
+  const syncLimitSlider = document.getElementById('sync-limit');
+  const syncLimitValue = document.getElementById('sync-limit-value');
 
   // Load saved weights and checkboxes
   const scanDislikesToggle = document.getElementById('scan-dislikes-toggle');
@@ -259,6 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const urlInput = row.querySelector('.playlist-url');
       urlInput.addEventListener('input', (e) => {
         customPlaylists[index].url = e.target.value.trim();
+        debouncedSave();
       });
 
       const weightInput = row.querySelector('.playlist-weight');
@@ -271,6 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (val < 0) weightVal.style.color = 'hsl(348, 83%, 57%)';
         else weightVal.style.color = 'var(--text-muted)';
       });
+      weightInput.addEventListener('change', saveSettings);
       // Initial color
       weightInput.dispatchEvent(new Event('input'));
 
@@ -278,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
       deleteBtn.addEventListener('click', () => {
         customPlaylists.splice(index, 1);
         renderCustomPlaylists();
+        saveSettings();
       });
 
       playlistsContainer.appendChild(row);
@@ -288,10 +293,77 @@ document.addEventListener('DOMContentLoaded', () => {
     addPlaylistBtn.addEventListener('click', () => {
       customPlaylists.push({ url: '', weight: 0.5 });
       renderCustomPlaylists();
+      saveSettings();
     });
   }
 
-  chrome.storage.local.get(['historyWeight', 'wlWeight', 'likedBonus', 'scanDislikes', 'syncAI', 'filterMusicVideos', 'customPlaylists'], (result) => {
+  // ── Auto-save Settings Function ──
+  let settingsReady = false; // Guard against saving before all values are loaded
+  let debounceTimer = null;
+
+  function saveSettings() {
+    if (!settingsReady) return; // Don't save until both storage.get callbacks have populated inputs
+
+    const selectedBackendEl = document.querySelector('input[name="ai-backend"]:checked');
+    const selectedBackend = selectedBackendEl ? selectedBackendEl.value : 'local';
+    const scanDislikes = scanDislikesToggle ? scanDislikesToggle.checked : false;
+    const syncAI = syncAIToggle ? syncAIToggle.checked : false;
+    const filterMusic = filterMusicToggle ? filterMusicToggle.checked : false;
+    const syncLimit = syncLimitSlider ? (parseInt(syncLimitSlider.value) || 500) : 500;
+    
+    // Clean up empty custom playlists on save (do not re-render immediately to prevent cursor jumping)
+    const cleanedPlaylists = customPlaylists.filter(pl => pl.url && pl.url.trim() !== '');
+
+    chrome.storage.local.set({
+      historyWeight: parseFloat(historySlider.value),
+      wlWeight: wlSlider ? parseFloat(wlSlider.value) : 0.5,
+      likedBonus: parseFloat(likedSlider.value),
+      aiBackend: selectedBackend,
+      useOllama: selectedBackend === 'ollama',
+      useOpenAI: selectedBackend === 'openai',
+      ollamaUrl: document.getElementById('ollama-url')?.value || '',
+      ollamaModel: document.getElementById('ollama-model')?.value || '',
+      openAIKey: document.getElementById('openai-key')?.value || '',
+      openAIUrl: document.getElementById('openai-url')?.value || '',
+      openAIModel: document.getElementById('openai-model')?.value || '',
+      scanDislikes: scanDislikes,
+      syncAI: syncAI,
+      filterMusicVideos: filterMusic,
+      customPlaylists: cleanedPlaylists,
+      syncLimit: syncLimit
+    }, () => {
+      // Update stats warning immediately
+      getItem('tasteMatrix', 'master').then(profile => checkAiWarning(profile));
+    });
+  }
+
+  // Debounced save for text inputs — fires 400ms after last keystroke,
+  // or immediately on popup unload via visibilitychange
+  function debouncedSave() {
+    if (!settingsReady) return;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(saveSettings, 400);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && settingsReady) {
+      clearTimeout(debounceTimer);
+      saveSettings();
+    }
+  });
+
+  // ── Settings: AI Backend Toggle (declarations needed by the settings loader below) ──
+  const radioButtons = document.querySelectorAll('input[name="ai-backend"]');
+  const ollamaSettings = document.getElementById('ollama-settings');
+  const openaiSettings = document.getElementById('openai-settings');
+
+  // Load ALL saved settings in a single call to avoid race conditions
+  chrome.storage.local.get([
+    'historyWeight', 'wlWeight', 'likedBonus', 'scanDislikes', 'syncAI',
+    'filterMusicVideos', 'customPlaylists', 'syncLimit',
+    'aiBackend', 'ollamaUrl', 'ollamaModel', 'openAIKey', 'openAIUrl', 'openAIModel'
+  ], (result) => {
+    // Weights and sliders
     if (result.historyWeight !== undefined) {
       historySlider.value = result.historyWeight;
       historyValue.textContent = parseFloat(result.historyWeight).toFixed(2);
@@ -316,28 +388,67 @@ document.addEventListener('DOMContentLoaded', () => {
     if (result.customPlaylists !== undefined) {
       customPlaylists = result.customPlaylists;
     }
+    if (result.syncLimit !== undefined && syncLimitSlider) {
+      syncLimitSlider.value = result.syncLimit;
+      if (syncLimitValue) syncLimitValue.textContent = result.syncLimit;
+    }
+
+    // AI backend text inputs (must be populated before radio change triggers)
+    if (result.ollamaUrl) document.getElementById('ollama-url').value = result.ollamaUrl;
+    if (result.ollamaModel) document.getElementById('ollama-model').value = result.ollamaModel;
+    if (result.openAIKey) document.getElementById('openai-key').value = result.openAIKey;
+    if (result.openAIUrl) document.getElementById('openai-url').value = result.openAIUrl;
+    if (result.openAIModel) document.getElementById('openai-model').value = result.openAIModel;
+
+    if (result.aiBackend) {
+      const radio = document.querySelector(`input[name="ai-backend"][value="${result.aiBackend}"]`);
+      if (radio) {
+        radio.checked = true;
+        ollamaSettings.style.display = result.aiBackend === 'ollama' ? 'block' : 'none';
+        openaiSettings.style.display = result.aiBackend === 'openai' ? 'block' : 'none';
+      }
+    }
+
     renderCustomPlaylists();
+
+    // All settings are now loaded — enable autosave
+    settingsReady = true;
   });
 
+  // Event listeners for inputs to trigger auto-saving
   if (filterMusicToggle) {
-    filterMusicToggle.addEventListener('change', (e) => {
-      chrome.storage.local.set({ filterMusicVideos: e.target.checked });
-    });
+    filterMusicToggle.addEventListener('change', saveSettings);
+  }
+  if (scanDislikesToggle) {
+    scanDislikesToggle.addEventListener('change', saveSettings);
+  }
+  if (syncAIToggle) {
+    syncAIToggle.addEventListener('change', saveSettings);
   }
 
   historySlider.addEventListener('input', (e) => {
     historyValue.textContent = parseFloat(e.target.value).toFixed(2);
   });
+  historySlider.addEventListener('change', saveSettings);
 
   if (wlSlider) {
     wlSlider.addEventListener('input', (e) => {
       wlValue.textContent = parseFloat(e.target.value).toFixed(2);
     });
+    wlSlider.addEventListener('change', saveSettings);
   }
 
   likedSlider.addEventListener('input', (e) => {
     updateLikedDisplay(parseFloat(e.target.value));
   });
+  likedSlider.addEventListener('change', saveSettings);
+
+  if (syncLimitSlider) {
+    syncLimitSlider.addEventListener('input', (e) => {
+      if (syncLimitValue) syncLimitValue.textContent = e.target.value;
+    });
+    syncLimitSlider.addEventListener('change', saveSettings);
+  }
 
   function updateLikedDisplay(val) {
     const v = parseFloat(val);
@@ -355,75 +466,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ── Settings: AI Backend Toggle ──
-  const radioButtons = document.querySelectorAll('input[name="ai-backend"]');
-  const ollamaSettings = document.getElementById('ollama-settings');
-  const openaiSettings = document.getElementById('openai-settings');
-
   radioButtons.forEach(radio => {
     radio.addEventListener('change', () => {
       ollamaSettings.style.display = radio.value === 'ollama' && radio.checked ? 'block' : 'none';
       openaiSettings.style.display = radio.value === 'openai' && radio.checked ? 'block' : 'none';
+      saveSettings();
     });
   });
 
-  // Load saved AI settings
-  chrome.storage.local.get(['aiBackend', 'ollamaUrl', 'ollamaModel', 'openAIKey', 'openAIUrl', 'openAIModel'], (result) => {
-    if (result.aiBackend) {
-      const radio = document.querySelector(`input[name="ai-backend"][value="${result.aiBackend}"]`);
-      if (radio) {
-        radio.checked = true;
-        radio.dispatchEvent(new Event('change'));
-      }
+  // Add event listeners to text inputs — use debounced input to prevent data loss on popup close
+  const autoSaveInputs = ['ollama-url', 'ollama-model', 'openai-url', 'openai-key', 'openai-model'];
+  autoSaveInputs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', debouncedSave);
     }
-    if (result.ollamaUrl) document.getElementById('ollama-url').value = result.ollamaUrl;
-    if (result.ollamaModel) document.getElementById('ollama-model').value = result.ollamaModel;
-    if (result.openAIKey) document.getElementById('openai-key').value = result.openAIKey;
-    if (result.openAIUrl) document.getElementById('openai-url').value = result.openAIUrl;
-    if (result.openAIModel) document.getElementById('openai-model').value = result.openAIModel;
-  });
-
-  // ── Save Settings ──
-  const saveBtn = document.getElementById('save-settings');
-  saveBtn.addEventListener('click', () => {
-    const selectedBackend = document.querySelector('input[name="ai-backend"]:checked').value;
-    const scanDislikes = scanDislikesToggle ? scanDislikesToggle.checked : false;
-    const syncAI = syncAIToggle ? syncAIToggle.checked : false;
-    const filterMusic = filterMusicToggle ? filterMusicToggle.checked : false;
-    
-    // Clean up empty playlists before saving
-    customPlaylists = customPlaylists.filter(pl => pl.url && pl.url.trim() !== '');
-    renderCustomPlaylists();
-    
-    chrome.storage.local.set({
-      historyWeight: parseFloat(historySlider.value),
-      wlWeight: wlSlider ? parseFloat(wlSlider.value) : 0.5,
-      likedBonus: parseFloat(likedSlider.value),
-      aiBackend: selectedBackend,
-      useOllama: selectedBackend === 'ollama',
-      useOpenAI: selectedBackend === 'openai',
-      ollamaUrl: document.getElementById('ollama-url').value,
-      ollamaModel: document.getElementById('ollama-model').value,
-      openAIKey: document.getElementById('openai-key').value,
-      openAIUrl: document.getElementById('openai-url').value,
-      openAIModel: document.getElementById('openai-model').value,
-      scanDislikes: scanDislikes,
-      syncAI: syncAI,
-      filterMusicVideos: filterMusic,
-      customPlaylists: customPlaylists
-    }, () => {
-      const originalText = saveBtn.innerText;
-      saveBtn.innerText = '✓ Saved!';
-      saveBtn.style.background = 'hsl(145, 63%, 42%)';
-      
-      // Update stats warning immediately
-      getItem('tasteMatrix', 'master').then(profile => checkAiWarning(profile));
-      
-      setTimeout(() => {
-        saveBtn.innerText = originalText;
-        saveBtn.style.background = '';
-      }, 2000);
-    });
   });
 
   // ── Taste Profile Sync ──
@@ -445,9 +502,10 @@ document.addEventListener('DOMContentLoaded', () => {
     syncProgress.innerText = '0';
     syncTotal.innerText = '0';
 
-    chrome.storage.local.get(['scanDislikes', 'syncAI'], (result) => {
+    chrome.storage.local.get(['scanDislikes', 'syncAI', 'syncLimit'], (result) => {
       const scanDislikes = result.scanDislikes || false;
       const syncAI = result.syncAI || false;
+      const syncLimit = result.syncLimit || 500;
 
       if (syncAI) {
         if (syncStatusMsg) syncStatusMsg.innerText = 'Syncing & Generating AI Embeddings (Slow)...';
@@ -458,7 +516,8 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.runtime.sendMessage({ 
         type: 'SYNC_TASTE_MATRIX',
         useAI: syncAI,
-        scanDislikes: scanDislikes
+        scanDislikes: scanDislikes,
+        syncLimit: syncLimit
       });
     });
   });

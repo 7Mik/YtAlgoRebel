@@ -69,7 +69,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           clientVersion: config?.clientVersion,
           hasIdToken: !!config?.idToken
         });
-        return scrapeTasteData(config, customPlaylists);
+        const syncLimit = message.syncLimit || 500;
+        return scrapeTasteData(config, customPlaylists, syncLimit);
       })
       .then(data => {
         console.log("YtAlgoRebel Content Script: Taste data scraped successfully", {
