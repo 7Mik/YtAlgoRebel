@@ -1,0 +1,49 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build extension
+        run: npm run build
+        
+      - name: Package extensions
+        run: |
+          cd dist
+          zip -r ../chrome-extension.zip *
+          zip -r ../firefox-extension.zip *
+          zip -r ../edge-extension.zip *
+          cd ..
+          
+      - name: Generate Release Tag
+        id: tag
+        run: echo "tag=v$(node -p "require('./package.json').version")-$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+        
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          files: |
+            chrome-extension.zip
+            firefox-extension.zip
+            edge-extension.zip
+          generate_release_notes: true
