@@ -93,21 +93,23 @@ The reranking engine is built as an additive model, supporting two execution pat
 ### 1. The Mathematical Model
 For a given video with title and channel, the score is calculated as:
 
-$$\text{score} = (H \cdot w_h) + (L \cdot w_l) + (W \cdot w_w) - (D \cdot |w_l|) - P_c$$
+$$\text{score} = (H \cdot w_h) + (L \cdot w_l) + (W \cdot w_w) - (D \cdot |w_l|) + (C_{score} \cdot w_c) - P_c$$
 
 Where:
 - $H$: History Affinity (0 to 1)
 - $L$: Likes Affinity (0 to 1)
 - $W$: Watch Later Affinity (0 to 1)
 - $D$: Dislikes Affinity (0 to 1)
-- $w_h, w_l, w_w$: Weights from user settings (sliders)
+- $C_{score}$: Channel Match Affinity (computed using exact channel names)
+- $w_h, w_l, w_w, w_c$: Weights from user settings (sliders)
 - $P_c$: Clickbait Penalty (0 to 1)
 
 ### 2. Scoring Pathways (`reranker.js`)
-- **Keyword Mode (Default)**: Uses zero-latency token overlap. Words are tokenized, stopwords are stripped, and a frequency map is queried. Channel name tokens receive a $1.5\times$ weight multiplier to favor creators the user watches regularly.
+- **Keyword Mode (Default)**: Uses zero-latency token overlap. Words are tokenized, stopwords are stripped, and a frequency map is queried.
 - **AI Mode (Opt-In)**: Converts video titles into dense vector embeddings. It computes the **Cosine Similarity** of the new video vector against the vectors in the user's Taste Matrix:
   $$\text{similarity} = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}$$
-  The affinity is defined as the maximum similarity between the new video and all vectors in that specific history/like/dislike pool.
+  The affinity is defined as the maximum similarity between the new video and all vectors in that specific history/like/dislike pool. The AI model only encodes the title to keep semantic topics clean.
+- **Creator Preference (Both Modes)**: Parallel to topic scoring, the system evaluates exact channel name matches against `historyChannelMap`, `likesChannelMap`, etc. This provides a flat baseline bonus (or penalty if disliked) dictated by the user's "Creator Preference" slider.
 
 ### 3. Embedding Pipeline (`ai.js`)
 To generate embeddings, the engine attempts three strategies in order:
