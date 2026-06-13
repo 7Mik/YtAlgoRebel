@@ -162,7 +162,7 @@ async function executeScrapeInTab(customPlaylists) {
       let isTempTab = false;
 
       // Filter tabs that are fully loaded and have http/https protocol
-      const ytTabs = tabs.filter(t => t.url && t.url.startsWith('http'));
+      const ytTabs = tabs.filter(t => t.url && t.url.startsWith('http') && t.status === 'complete' && !t.discarded);
 
       if (ytTabs.length > 0) {
         // Use the first available YouTube tab
@@ -179,15 +179,44 @@ async function executeScrapeInTab(customPlaylists) {
           isTempTab = true;
 
           // Wait for the tab to load
-          await new Promise((resolveLoad) => {
+          await new Promise((resolveLoad, rejectLoad) => {
+            let timeoutId;
+            let resolvedOrRejected = false;
+
+            function cleanup() {
+              if (resolvedOrRejected) return;
+              resolvedOrRejected = true;
+              chrome.tabs.onUpdated.removeListener(onTabUpdated);
+              chrome.tabs.onRemoved.removeListener(onTabRemoved);
+              if (timeoutId) clearTimeout(timeoutId);
+            }
+
             function onTabUpdated(updatedTabId, changeInfo) {
               if (updatedTabId === tabId && changeInfo.status === 'complete') {
-                chrome.tabs.onUpdated.removeListener(onTabUpdated);
+                cleanup();
                 // Give the content script a moment to load and register the message listener
                 setTimeout(resolveLoad, 2000);
               }
             }
+
+            function onTabRemoved(removedTabId) {
+              if (removedTabId === tabId) {
+                cleanup();
+                rejectLoad(new Error("Temporary tab was closed before it finished loading."));
+              }
+            }
+
             chrome.tabs.onUpdated.addListener(onTabUpdated);
+            chrome.tabs.onRemoved.addListener(onTabRemoved);
+
+            // 15 seconds safety timeout
+            timeoutId = setTimeout(() => {
+              cleanup();
+              if (tabId) {
+                chrome.tabs.remove(tabId).catch(() => {});
+              }
+              rejectLoad(new Error("Timeout waiting for temporary tab to load."));
+            }, 15000);
           });
         } catch (err) {
           reject(new Error("Failed to create temporary YouTube tab for scraping: " + err.message));
@@ -239,6 +268,13 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
   }
 
   const { historyEntries, likesEntries, dislikesEntries: playlistDislikes, wlEntries, customPlaylistsData: scrapedCustomPlaylists } = scrapedData;
+
+  let existingProfile = null;
+  try {
+    existingProfile = await getItem('tasteMatrix', 'master');
+  } catch (err) {
+    console.warn("YtAlgoRebel: Failed to load existing taste matrix", err);
+  }
   
   const normalizeTitle = (str) => {
     if (!str) return '';
@@ -308,7 +344,15 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
   // ── Keyword maps (always built, instant) ──
   const historyKeywordMap = buildKeywordMap(historyEntries);
   const likesKeywordMap = buildKeywordMap(likesEntries);
-  const dislikesKeywordMap = buildKeywordMap(dislikesEntries);
+  
+  let dislikesKeywordMap;
+  if (!scanDislikes && existingProfile) {
+    dislikesKeywordMap = existingProfile.dislikesKeywordMap || {};
+    console.log(`YtAlgoRebel: Preserving ${Object.keys(dislikesKeywordMap).length} dislikes from existing profile`);
+  } else {
+    dislikesKeywordMap = buildKeywordMap(dislikesEntries);
+  }
+  
   const wlKeywordMap = buildKeywordMap(wlEntries);
   
   // Save raw history titles for "already watched" filtering
@@ -323,11 +367,11 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
     historyTitles,
     historyEmbeddings: [],
     likesEmbeddings: [],
-    dislikesEmbeddings: [],
+    dislikesEmbeddings: (!scanDislikes && existingProfile) ? (existingProfile.dislikesEmbeddings || []) : [],
     wlEmbeddings: [],
     historyCount: historyEntries.length,
     likesCount: likesEntries.length,
-    dislikesCount: dislikesEntries.length,
+    dislikesCount: (!scanDislikes && existingProfile) ? (existingProfile.dislikesCount || 0) : dislikesEntries.length,
     wlCount: wlEntries.length,
     customPlaylistsData: [],
     lastSync: Date.now()
@@ -456,7 +500,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }).then(success => {
         chrome.runtime.sendMessage({ type: 'SYNC_COMPLETE', success }).catch(() => {});
     });
-    return true;
   }
   
   // ── Find Top Videos from the current page ──
@@ -480,7 +523,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         videos: videos
       }).catch(() => {});
     }
-    return true;
   }
   
   // ── Reserved for inject.js API interception ──

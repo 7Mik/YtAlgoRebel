@@ -171,15 +171,15 @@ let cachedClientVersion = null;
 let cachedIdToken = null;
 
 async function getInnerTubeConfig(injectedConfig) {
-    if (cachedApiKey && cachedClientVersion && cachedIdToken) {
+    if (injectedConfig && injectedConfig.apiKey) {
+        cachedApiKey = injectedConfig.apiKey;
+        cachedClientVersion = injectedConfig.clientVersion || getFallbackClientVersion();
+        cachedIdToken = injectedConfig.idToken;
+        console.log(`YtAlgoRebel: Config received from main world — Key: success, Version: ${cachedClientVersion}, Token: ${cachedIdToken ? 'success' : 'failed'}`);
         return { apiKey: cachedApiKey, clientVersion: cachedClientVersion, idToken: cachedIdToken };
     }
 
-    if (injectedConfig && injectedConfig.apiKey) {
-        cachedApiKey = injectedConfig.apiKey;
-        cachedClientVersion = injectedConfig.clientVersion;
-        cachedIdToken = injectedConfig.idToken;
-        console.log(`YtAlgoRebel: Config received from main world — Key: success, Version: ${cachedClientVersion}, Token: ${cachedIdToken ? 'success' : 'failed'}`);
+    if (cachedApiKey && cachedClientVersion) {
         return { apiKey: cachedApiKey, clientVersion: cachedClientVersion, idToken: cachedIdToken };
     }
 
@@ -436,18 +436,9 @@ export async function scrapeTasteData(injectedConfig, customPlaylists = []) {
         }
     }
 
-    // Disliked videos playlist fallback
-    const dislikesData = await fetchYtInitialData('https://www.youtube.com/playlist?list=DL');
-    if (dislikesData) {
-        dislikesEntries = extractVideoEntries(dislikesData);
-        if (dislikesEntries.length < limit) {
-            const token = findContinuationToken(dislikesData);
-            if (token && apiKey) {
-                const more = await fetchInnerTubeContinuation(apiKey, clientVersion, idToken, token, limit - dislikesEntries.length);
-                dislikesEntries.push(...more);
-            }
-        }
-    }
+    // Disliked videos are populated offline via Google My Activity timeline alignment in background.js,
+    // so no HTML playlist fallback fetch is needed.
+    dislikesEntries = [];
 
     // Ensure strict limits at limit items
     historyEntries = historyEntries.slice(0, limit);
@@ -461,9 +452,12 @@ export async function scrapeTasteData(injectedConfig, customPlaylists = []) {
     const customPlaylistsData = [];
     for (const pl of customPlaylists) {
         if (!pl.url) continue;
-        const match = pl.url.match(/[&?]list=([^&]+)/);
+        const match = pl.url.match(/[&?]list=([a-zA-Z0-9_-]+)/);
         const playlistId = match ? match[1] : pl.url.trim();
-        if (!playlistId) continue;
+        if (!playlistId || !/^[a-zA-Z0-9_-]+$/.test(playlistId)) {
+            console.warn("YtAlgoRebel: Invalid playlist ID/URL skipped: " + pl.url);
+            continue;
+        }
 
         const browseId = playlistId.startsWith('VL') ? playlistId : 'VL' + playlistId;
         console.log(`YtAlgoRebel: Scraping custom playlist ${playlistId}...`);

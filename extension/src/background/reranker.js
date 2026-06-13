@@ -121,7 +121,12 @@ export function scoreVideoKeywords(videoTitle, videoChannel, historyMap, likesMa
     // Add custom playlists keyword score
     if (customPlaylistsData.length > 0 && customPlaylistsConfig.length > 0) {
         for (const plData of customPlaylistsData) {
-            const configPl = customPlaylistsConfig.find(p => p.url && (p.url.includes(plData.playlistId) || plData.playlistId.includes(p.url)));
+            const configPl = customPlaylistsConfig.find(p => {
+                if (!p.url) return false;
+                const match = p.url.match(/[&?]list=([a-zA-Z0-9_-]+)/);
+                const configId = match ? match[1] : p.url.trim();
+                return configId === plData.playlistId;
+            });
             if (configPl && configPl.weight !== undefined && plData.keywordMap && Object.keys(plData.keywordMap).length > 0) {
                 const plAffinity = keywordAffinity(videoTitle, videoChannel, plData.keywordMap);
                 score += plAffinity * parseFloat(configPl.weight);
@@ -193,7 +198,12 @@ export function scoreVideoAI(videoEmbedding, videoTitle, historyEmbeddings, like
     // Add custom playlists AI score
     if (customPlaylistsData.length > 0 && customPlaylistsConfig.length > 0) {
         for (const plData of customPlaylistsData) {
-            const configPl = customPlaylistsConfig.find(p => p.url && (p.url.includes(plData.playlistId) || plData.playlistId.includes(p.url)));
+            const configPl = customPlaylistsConfig.find(p => {
+                if (!p.url) return false;
+                const match = p.url.match(/[&?]list=([a-zA-Z0-9_-]+)/);
+                const configId = match ? match[1] : p.url.trim();
+                return configId === plData.playlistId;
+            });
             if (configPl && configPl.weight !== undefined && plData.embeddings && plData.embeddings.length > 0) {
                 const plAffinity = maxSimilarity(videoEmbedding, plData.embeddings);
                 score += plAffinity * parseFloat(configPl.weight);

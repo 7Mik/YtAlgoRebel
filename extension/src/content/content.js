@@ -31,9 +31,11 @@ window.addEventListener('message', (event) => {
 
 function getInnerTubeConfigFromMainWorld() {
   return new Promise((resolve) => {
+    let timeoutId;
     const handler = (event) => {
       if (event.source !== window) return;
       if (event.data && event.data.type === 'YT_ALGO_REBEL_SEND_CONFIG') {
+        clearTimeout(timeoutId);
         window.removeEventListener('message', handler);
         resolve(event.data.config);
       }
@@ -42,7 +44,7 @@ function getInnerTubeConfigFromMainWorld() {
     window.postMessage({ type: 'YT_ALGO_REBEL_GET_CONFIG' }, '*');
     
     // Safety timeout: fallback to empty/null config if no response in 2 seconds
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       window.removeEventListener('message', handler);
       resolve(null);
     }, 2000);
@@ -62,11 +64,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const customPlaylists = message.customPlaylists || [];
     getInnerTubeConfigFromMainWorld()
       .then(config => {
-        console.log("YtAlgoRebel Content Script: InnerTube config obtained from page:", config);
+        console.log("YtAlgoRebel Content Script: InnerTube config obtained from page (sanitized):", {
+          apiKey: config?.apiKey ? 'present' : 'missing',
+          clientVersion: config?.clientVersion,
+          hasIdToken: !!config?.idToken
+        });
         return scrapeTasteData(config, customPlaylists);
       })
       .then(data => {
-        console.log("YtAlgoRebel Content Script: Taste data scraped successfully", data);
+        console.log("YtAlgoRebel Content Script: Taste data scraped successfully", {
+          historyCount: data?.historyEntries?.length,
+          likesCount: data?.likesEntries?.length,
+          wlCount: data?.wlEntries?.length,
+          dislikesCount: data?.dislikesEntries?.length,
+          customPlaylistsCount: data?.customPlaylistsData?.length
+        });
         sendResponse({ success: true, data });
       })
       .catch(err => {
@@ -119,15 +131,13 @@ function isMusicVideo(el, title, channel) {
     const artistBadge = el.querySelector('.badge-style-type-verified-artist, ytd-badge-supported-renderer[class*="verified-artist"], [aria-label="Official Artist Channel"], [title="Official Artist Channel"]');
     if (artistBadge) return true;
     
-    // Check for SVGs with music-note icon
-    const svgs = el.querySelectorAll('svg');
-    for (const svg of svgs) {
-      const path = svg.querySelector('path');
-      if (path) {
-        const d = path.getAttribute('d') || '';
-        if (d.includes('M12 3v10.55') || d.includes('M12,3v10.55') || d.includes('m12 3') || d.includes('M12 3v13.55')) {
-          return true;
-        }
+    // Check for paths with music-note icon
+    const paths = el.querySelectorAll('path');
+    for (const path of paths) {
+      const d = path.getAttribute('d') || '';
+      if (d.includes('M12 3v10.55') || d.includes('M12,3v10.55') || d.includes('M12 3v13.55') ||
+          d.includes('m12 3v10.55') || d.includes('m12,3v10.55') || d.includes('m12 3v13.55')) {
+        return true;
       }
     }
   }
