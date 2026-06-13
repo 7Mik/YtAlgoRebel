@@ -452,7 +452,7 @@ export async function scrapeTasteData(injectedConfig, customPlaylists = []) {
     const customPlaylistsData = [];
     for (const pl of customPlaylists) {
         if (!pl.url) continue;
-        const match = pl.url.match(/[&?]list=([a-zA-Z0-9_-]+)/);
+        const match = pl.url.match(/[&?]list=([a-zA-Z0-9_-]+)(?=&|#|$)/);
         const playlistId = match ? match[1] : pl.url.trim();
         if (!playlistId || !/^[a-zA-Z0-9_-]+$/.test(playlistId)) {
             console.warn("YtAlgoRebel: Invalid playlist ID/URL skipped: " + pl.url);
