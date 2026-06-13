@@ -135,7 +135,8 @@ function isMusicVideo(el, title, channel) {
     const paths = el.querySelectorAll('path');
     for (const path of paths) {
       const d = path.getAttribute('d') || '';
-      if (d.includes('M12 3v10.55') || d.includes('M12,3v10.55') || d.includes('m12 3') || d.includes('M12 3v13.55')) {
+      if (d.includes('M12 3v10.55') || d.includes('M12,3v10.55') || d.includes('M12 3v13.55') ||
+          d.includes('m12 3v10.55') || d.includes('m12,3v10.55') || d.includes('m12 3v13.55')) {
         return true;
       }
     }

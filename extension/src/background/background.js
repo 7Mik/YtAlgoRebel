@@ -212,6 +212,9 @@ async function executeScrapeInTab(customPlaylists) {
             // 15 seconds safety timeout
             timeoutId = setTimeout(() => {
               cleanup();
+              if (tabId) {
+                chrome.tabs.remove(tabId).catch(() => {});
+              }
               rejectLoad(new Error("Timeout waiting for temporary tab to load."));
             }, 15000);
           });
@@ -265,6 +268,13 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
   }
 
   const { historyEntries, likesEntries, dislikesEntries: playlistDislikes, wlEntries, customPlaylistsData: scrapedCustomPlaylists } = scrapedData;
+
+  let existingProfile = null;
+  try {
+    existingProfile = await getItem('tasteMatrix', 'master');
+  } catch (err) {
+    console.warn("YtAlgoRebel: Failed to load existing taste matrix", err);
+  }
   
   const normalizeTitle = (str) => {
     if (!str) return '';
@@ -334,7 +344,15 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
   // ── Keyword maps (always built, instant) ──
   const historyKeywordMap = buildKeywordMap(historyEntries);
   const likesKeywordMap = buildKeywordMap(likesEntries);
-  const dislikesKeywordMap = buildKeywordMap(dislikesEntries);
+  
+  let dislikesKeywordMap;
+  if (!scanDislikes && existingProfile) {
+    dislikesKeywordMap = existingProfile.dislikesKeywordMap || {};
+    console.log(`YtAlgoRebel: Preserving ${Object.keys(dislikesKeywordMap).length} dislikes from existing profile`);
+  } else {
+    dislikesKeywordMap = buildKeywordMap(dislikesEntries);
+  }
+  
   const wlKeywordMap = buildKeywordMap(wlEntries);
   
   // Save raw history titles for "already watched" filtering
@@ -349,11 +367,11 @@ async function buildTasteProfile(useAI, scanDislikes, progressCallback) {
     historyTitles,
     historyEmbeddings: [],
     likesEmbeddings: [],
-    dislikesEmbeddings: [],
+    dislikesEmbeddings: (!scanDislikes && existingProfile) ? (existingProfile.dislikesEmbeddings || []) : [],
     wlEmbeddings: [],
     historyCount: historyEntries.length,
     likesCount: likesEntries.length,
-    dislikesCount: dislikesEntries.length,
+    dislikesCount: (!scanDislikes && existingProfile) ? (existingProfile.dislikesCount || 0) : dislikesEntries.length,
     wlCount: wlEntries.length,
     customPlaylistsData: [],
     lastSync: Date.now()

@@ -123,7 +123,7 @@ export function scoreVideoKeywords(videoTitle, videoChannel, historyMap, likesMa
         for (const plData of customPlaylistsData) {
             const configPl = customPlaylistsConfig.find(p => {
                 if (!p.url) return false;
-                const match = p.url.match(/[&?]list=([^&]+)/);
+                const match = p.url.match(/[&?]list=([a-zA-Z0-9_-]+)/);
                 const configId = match ? match[1] : p.url.trim();
                 return configId === plData.playlistId;
             });
@@ -200,7 +200,7 @@ export function scoreVideoAI(videoEmbedding, videoTitle, historyEmbeddings, like
         for (const plData of customPlaylistsData) {
             const configPl = customPlaylistsConfig.find(p => {
                 if (!p.url) return false;
-                const match = p.url.match(/[&?]list=([^&]+)/);
+                const match = p.url.match(/[&?]list=([a-zA-Z0-9_-]+)/);
                 const configId = match ? match[1] : p.url.trim();
                 return configId === plData.playlistId;
             });
