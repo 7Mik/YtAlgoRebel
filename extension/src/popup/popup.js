@@ -352,8 +352,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Load saved weights and checkboxes
-  chrome.storage.local.get(['historyWeight', 'wlWeight', 'likedBonus', 'scanDislikes', 'syncAI', 'filterMusicVideos', 'customPlaylists', 'syncLimit'], (result) => {
+  // ── Settings: AI Backend Toggle (declarations needed by the settings loader below) ──
+  const radioButtons = document.querySelectorAll('input[name="ai-backend"]');
+  const ollamaSettings = document.getElementById('ollama-settings');
+  const openaiSettings = document.getElementById('openai-settings');
+
+  // Load ALL saved settings in a single call to avoid race conditions
+  chrome.storage.local.get([
+    'historyWeight', 'wlWeight', 'likedBonus', 'scanDislikes', 'syncAI',
+    'filterMusicVideos', 'customPlaylists', 'syncLimit',
+    'aiBackend', 'ollamaUrl', 'ollamaModel', 'openAIKey', 'openAIUrl', 'openAIModel'
+  ], (result) => {
+    // Weights and sliders
     if (result.historyWeight !== undefined) {
       historySlider.value = result.historyWeight;
       historyValue.textContent = parseFloat(result.historyWeight).toFixed(2);
@@ -382,7 +392,27 @@ document.addEventListener('DOMContentLoaded', () => {
       syncLimitSlider.value = result.syncLimit;
       if (syncLimitValue) syncLimitValue.textContent = result.syncLimit;
     }
+
+    // AI backend text inputs (must be populated before radio change triggers)
+    if (result.ollamaUrl) document.getElementById('ollama-url').value = result.ollamaUrl;
+    if (result.ollamaModel) document.getElementById('ollama-model').value = result.ollamaModel;
+    if (result.openAIKey) document.getElementById('openai-key').value = result.openAIKey;
+    if (result.openAIUrl) document.getElementById('openai-url').value = result.openAIUrl;
+    if (result.openAIModel) document.getElementById('openai-model').value = result.openAIModel;
+
+    if (result.aiBackend) {
+      const radio = document.querySelector(`input[name="ai-backend"][value="${result.aiBackend}"]`);
+      if (radio) {
+        radio.checked = true;
+        ollamaSettings.style.display = result.aiBackend === 'ollama' ? 'block' : 'none';
+        openaiSettings.style.display = result.aiBackend === 'openai' ? 'block' : 'none';
+      }
+    }
+
     renderCustomPlaylists();
+
+    // All settings are now loaded — enable autosave
+    settingsReady = true;
   });
 
   // Event listeners for inputs to trigger auto-saving
@@ -436,40 +466,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ── Settings: AI Backend Toggle ──
-  const radioButtons = document.querySelectorAll('input[name="ai-backend"]');
-  const ollamaSettings = document.getElementById('ollama-settings');
-  const openaiSettings = document.getElementById('openai-settings');
-
   radioButtons.forEach(radio => {
     radio.addEventListener('change', () => {
       ollamaSettings.style.display = radio.value === 'ollama' && radio.checked ? 'block' : 'none';
       openaiSettings.style.display = radio.value === 'openai' && radio.checked ? 'block' : 'none';
       saveSettings();
     });
-  });
-
-  // Load saved AI settings — must populate text inputs BEFORE enabling settingsReady
-  chrome.storage.local.get(['aiBackend', 'ollamaUrl', 'ollamaModel', 'openAIKey', 'openAIUrl', 'openAIModel'], (result) => {
-    // Populate text inputs first, before triggering any change events
-    if (result.ollamaUrl) document.getElementById('ollama-url').value = result.ollamaUrl;
-    if (result.ollamaModel) document.getElementById('ollama-model').value = result.ollamaModel;
-    if (result.openAIKey) document.getElementById('openai-key').value = result.openAIKey;
-    if (result.openAIUrl) document.getElementById('openai-url').value = result.openAIUrl;
-    if (result.openAIModel) document.getElementById('openai-model').value = result.openAIModel;
-
-    if (result.aiBackend) {
-      const radio = document.querySelector(`input[name="ai-backend"][value="${result.aiBackend}"]`);
-      if (radio) {
-        radio.checked = true;
-        // Update panel visibility without triggering saveSettings (settingsReady is still false)
-        ollamaSettings.style.display = result.aiBackend === 'ollama' ? 'block' : 'none';
-        openaiSettings.style.display = result.aiBackend === 'openai' ? 'block' : 'none';
-      }
-    }
-
-    // All settings are now loaded — enable autosave
-    settingsReady = true;
   });
 
   // Add event listeners to text inputs — use debounced input to prevent data loss on popup close
