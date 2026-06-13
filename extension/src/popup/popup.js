@@ -261,9 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const urlInput = row.querySelector('.playlist-url');
       urlInput.addEventListener('input', (e) => {
         customPlaylists[index].url = e.target.value.trim();
-      });
-      urlInput.addEventListener('change', () => {
-        saveSettings();
+        debouncedSave();
       });
 
       const weightInput = row.querySelector('.playlist-weight');
@@ -276,9 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (val < 0) weightVal.style.color = 'hsl(348, 83%, 57%)';
         else weightVal.style.color = 'var(--text-muted)';
       });
-      weightInput.addEventListener('change', () => {
-        saveSettings();
-      });
+      weightInput.addEventListener('change', saveSettings);
       // Initial color
       weightInput.dispatchEvent(new Event('input'));
 
@@ -302,7 +298,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Auto-save Settings Function ──
+  let settingsReady = false; // Guard against saving before all values are loaded
+  let debounceTimer = null;
+
   function saveSettings() {
+    if (!settingsReady) return; // Don't save until both storage.get callbacks have populated inputs
+
     const selectedBackendEl = document.querySelector('input[name="ai-backend"]:checked');
     const selectedBackend = selectedBackendEl ? selectedBackendEl.value : 'local';
     const scanDislikes = scanDislikesToggle ? scanDislikesToggle.checked : false;
@@ -320,11 +321,11 @@ document.addEventListener('DOMContentLoaded', () => {
       aiBackend: selectedBackend,
       useOllama: selectedBackend === 'ollama',
       useOpenAI: selectedBackend === 'openai',
-      ollamaUrl: document.getElementById('ollama-url').value,
-      ollamaModel: document.getElementById('ollama-model').value,
-      openAIKey: document.getElementById('openai-key').value,
-      openAIUrl: document.getElementById('openai-url').value,
-      openAIModel: document.getElementById('openai-model').value,
+      ollamaUrl: document.getElementById('ollama-url')?.value || '',
+      ollamaModel: document.getElementById('ollama-model')?.value || '',
+      openAIKey: document.getElementById('openai-key')?.value || '',
+      openAIUrl: document.getElementById('openai-url')?.value || '',
+      openAIModel: document.getElementById('openai-model')?.value || '',
       scanDislikes: scanDislikes,
       syncAI: syncAI,
       filterMusicVideos: filterMusic,
@@ -335,6 +336,21 @@ document.addEventListener('DOMContentLoaded', () => {
       getItem('tasteMatrix', 'master').then(profile => checkAiWarning(profile));
     });
   }
+
+  // Debounced save for text inputs — fires 400ms after last keystroke,
+  // or immediately on popup unload via visibilitychange
+  function debouncedSave() {
+    if (!settingsReady) return;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(saveSettings, 400);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && settingsReady) {
+      clearTimeout(debounceTimer);
+      saveSettings();
+    }
+  });
 
   // Load saved weights and checkboxes
   chrome.storage.local.get(['historyWeight', 'wlWeight', 'likedBonus', 'scanDislikes', 'syncAI', 'filterMusicVideos', 'customPlaylists', 'syncLimit'], (result) => {
@@ -433,28 +449,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Load saved AI settings
+  // Load saved AI settings — must populate text inputs BEFORE enabling settingsReady
   chrome.storage.local.get(['aiBackend', 'ollamaUrl', 'ollamaModel', 'openAIKey', 'openAIUrl', 'openAIModel'], (result) => {
-    if (result.aiBackend) {
-      const radio = document.querySelector(`input[name="ai-backend"][value="${result.aiBackend}"]`);
-      if (radio) {
-        radio.checked = true;
-        radio.dispatchEvent(new Event('change'));
-      }
-    }
+    // Populate text inputs first, before triggering any change events
     if (result.ollamaUrl) document.getElementById('ollama-url').value = result.ollamaUrl;
     if (result.ollamaModel) document.getElementById('ollama-model').value = result.ollamaModel;
     if (result.openAIKey) document.getElementById('openai-key').value = result.openAIKey;
     if (result.openAIUrl) document.getElementById('openai-url').value = result.openAIUrl;
     if (result.openAIModel) document.getElementById('openai-model').value = result.openAIModel;
+
+    if (result.aiBackend) {
+      const radio = document.querySelector(`input[name="ai-backend"][value="${result.aiBackend}"]`);
+      if (radio) {
+        radio.checked = true;
+        // Update panel visibility without triggering saveSettings (settingsReady is still false)
+        ollamaSettings.style.display = result.aiBackend === 'ollama' ? 'block' : 'none';
+        openaiSettings.style.display = result.aiBackend === 'openai' ? 'block' : 'none';
+      }
+    }
+
+    // All settings are now loaded — enable autosave
+    settingsReady = true;
   });
 
-  // Add event listeners to text inputs to trigger auto-saving
+  // Add event listeners to text inputs — use debounced input to prevent data loss on popup close
   const autoSaveInputs = ['ollama-url', 'ollama-model', 'openai-url', 'openai-key', 'openai-model'];
   autoSaveInputs.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      el.addEventListener('change', saveSettings);
+      el.addEventListener('input', debouncedSave);
     }
   });
 
