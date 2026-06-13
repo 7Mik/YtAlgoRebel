@@ -857,3 +857,46 @@ input:checked + .slider:before {
 .hidden {
   display: none;
 }
+
+/* Custom Playlists */
+.custom-playlists-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-top: 0.5rem;
+}
+
+.custom-playlist-row {
+  background: hsla(220, 20%, 15%, 0.3);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+
+.playlist-row-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.playlist-row-header .playlist-url {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.btn-delete-playlist {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  line-height: 1;
+  transition: var(--transition);
+}
+
+.btn-delete-playlist:hover {
+  color: hsl(348, 83%, 57%);
+  transform: scale(1.1);
+}
