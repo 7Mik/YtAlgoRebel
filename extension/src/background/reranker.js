@@ -69,7 +69,7 @@ export function buildChannelMap(entries) {
     const freq = {};
     if (!entries || !Array.isArray(entries)) return freq;
     for (const entry of entries) {
-        if (!entry || !entry.channel) continue;
+        if (!entry || typeof entry.channel !== 'string') continue;
         const channelName = entry.channel.trim();
         if (channelName) {
             freq[channelName] = (freq[channelName] || 0) + 1;
@@ -269,7 +269,7 @@ export function scoreVideoAI(videoEmbedding, videoTitle, videoChannel, historyEm
 // ── Channel scoring utility ──
 
 function channelAffinity(channel, map) {
-    if (!channel || !map) return 0;
+    if (typeof channel !== 'string' || !map) return 0;
     const trimmed = channel.trim();
     if (!trimmed || !Object.prototype.hasOwnProperty.call(map, trimmed)) return 0;
     const count = map[trimmed];
