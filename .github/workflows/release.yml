@@ -44,10 +44,12 @@ jobs:
           
       - name: Generate Release Tag
         id: tag
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG_NAME="v${{ inputs.version }}"
-            if [[ "${{ inputs.version }}" == *-* ]]; then
+            TAG_NAME="v${VERSION_INPUT}"
+            if [[ "${VERSION_INPUT}" == *-* ]]; then
               echo "prerelease=true" >> $GITHUB_OUTPUT
             else
               echo "prerelease=false" >> $GITHUB_OUTPUT
