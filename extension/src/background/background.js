@@ -1,4 +1,3 @@
-import { scrapeTasteData } from './scraper.js';
 import { generateEmbeddings } from './ai.js';
 import { buildKeywordMap, buildChannelMap, scoreVideoKeywords, scoreVideoAI } from './reranker.js';
 import { putItem, getItem } from '../utils/db.js';
@@ -352,7 +351,10 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
   let dislikesChannelMap;
   if (!scanDislikes && existingProfile) {
     dislikesKeywordMap = existingProfile.dislikesKeywordMap || {};
-    dislikesChannelMap = existingProfile.dislikesChannelMap || {};
+    dislikesChannelMap = existingProfile.dislikesChannelMap;
+    if (!dislikesChannelMap || Object.keys(dislikesChannelMap).length === 0) {
+      dislikesChannelMap = buildChannelMap(dislikesEntries);
+    }
     console.log(`YtAlgoRebel: Preserving ${Object.keys(dislikesKeywordMap).length} dislikes from existing profile`);
   } else {
     dislikesKeywordMap = buildKeywordMap(dislikesEntries);
