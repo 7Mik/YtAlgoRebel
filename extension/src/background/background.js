@@ -1,6 +1,6 @@
 import { scrapeTasteData } from './scraper.js';
 import { generateEmbeddings } from './ai.js';
-import { buildKeywordMap, scoreVideoKeywords, scoreVideoAI } from './reranker.js';
+import { buildKeywordMap, buildChannelMap, scoreVideoKeywords, scoreVideoAI } from './reranker.js';
 import { putItem, getItem } from '../utils/db.js';
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -140,11 +140,12 @@ async function scrapeAllFromMyActivity() {
  */
 function getWeights() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['historyWeight', 'likedBonus', 'wlWeight'], (result) => {
+    chrome.storage.local.get(['historyWeight', 'likedBonus', 'wlWeight', 'channelWeight'], (result) => {
       resolve({
         historyWeight: result.historyWeight !== undefined ? result.historyWeight : 0.5,
         likedBonus: result.likedBonus !== undefined ? result.likedBonus : 0.5,
-        wlWeight: result.wlWeight !== undefined ? result.wlWeight : 0.5
+        wlWeight: result.wlWeight !== undefined ? result.wlWeight : 0.5,
+        channelWeight: result.channelWeight !== undefined ? result.channelWeight : 0.5
       });
     });
   });
@@ -341,19 +342,25 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
   
   if (historyEntries.length === 0 && likesEntries.length === 0) return false;
   
-  // ── Keyword maps (always built, instant) ──
+  // ── Keyword and Channel maps (always built, instant) ──
   const historyKeywordMap = buildKeywordMap(historyEntries);
   const likesKeywordMap = buildKeywordMap(likesEntries);
+  const historyChannelMap = buildChannelMap(historyEntries);
+  const likesChannelMap = buildChannelMap(likesEntries);
   
   let dislikesKeywordMap;
+  let dislikesChannelMap;
   if (!scanDislikes && existingProfile) {
     dislikesKeywordMap = existingProfile.dislikesKeywordMap || {};
+    dislikesChannelMap = existingProfile.dislikesChannelMap || {};
     console.log(`YtAlgoRebel: Preserving ${Object.keys(dislikesKeywordMap).length} dislikes from existing profile`);
   } else {
     dislikesKeywordMap = buildKeywordMap(dislikesEntries);
+    dislikesChannelMap = buildChannelMap(dislikesEntries);
   }
   
   const wlKeywordMap = buildKeywordMap(wlEntries);
+  const wlChannelMap = buildChannelMap(wlEntries);
   
   // Save raw history titles for "already watched" filtering
   const historyTitles = historyEntries.map(e => e.title.toLowerCase().trim());
@@ -364,6 +371,10 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
     likesKeywordMap,
     dislikesKeywordMap,
     wlKeywordMap,
+    historyChannelMap,
+    likesChannelMap,
+    dislikesChannelMap,
+    wlChannelMap,
     historyTitles,
     historyEmbeddings: [],
     likesEmbeddings: [],
@@ -545,7 +556,7 @@ async function findTopVideos(pageVideos, useAI = false) {
   }
   
   const weights = await getWeights();
-  const { historyWeight, likedBonus, wlWeight } = weights;
+  const { historyWeight, likedBonus, wlWeight, channelWeight } = weights;
   
   const { filterMusicVideos, customPlaylists } = await new Promise(resolve => {
     chrome.storage.local.get(['filterMusicVideos', 'customPlaylists'], (res) => resolve({
@@ -556,6 +567,7 @@ async function findTopVideos(pageVideos, useAI = false) {
   
   const {
     historyKeywordMap, likesKeywordMap, dislikesKeywordMap, wlKeywordMap,
+    historyChannelMap, likesChannelMap, dislikesChannelMap, wlChannelMap,
     historyTitles,
     historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings
   } = profile;
@@ -587,17 +599,19 @@ async function findTopVideos(pageVideos, useAI = false) {
       if (runAI) {
         const emb = await generateEmbeddings(vid.title, null);
         score = scoreVideoAI(
-          emb, vid.title,
+          emb, vid.title, vid.channel || '',
           historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings || [],
           historyWeight, likedBonus, wlWeight,
-          profile.customPlaylistsData || [], customPlaylists
+          profile.customPlaylistsData || [], customPlaylists,
+          historyChannelMap || {}, likesChannelMap || {}, dislikesChannelMap || {}, wlChannelMap || {}, channelWeight
         );
       } else {
         score = scoreVideoKeywords(
           vid.title, vid.channel || '',
           historyKeywordMap || {}, likesKeywordMap || {}, dislikesKeywordMap || {}, wlKeywordMap || {},
           historyWeight, likedBonus, wlWeight,
-          profile.customPlaylistsData || [], customPlaylists
+          profile.customPlaylistsData || [], customPlaylists,
+          historyChannelMap || {}, likesChannelMap || {}, dislikesChannelMap || {}, wlChannelMap || {}, channelWeight
         );
       }
       

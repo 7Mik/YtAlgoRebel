@@ -207,6 +207,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const historyValue = document.getElementById('history-weight-value');
   const wlSlider = document.getElementById('wl-weight');
   const wlValue = document.getElementById('wl-weight-value');
+  const channelSlider = document.getElementById('channel-weight');
+  const channelValue = document.getElementById('channel-weight-value');
   const likedSlider = document.getElementById('liked-bonus');
   const likedValue = document.getElementById('liked-bonus-value');
   const likedDisplay = document.getElementById('liked-display');
@@ -317,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.set({
       historyWeight: parseFloat(historySlider.value),
       wlWeight: wlSlider ? parseFloat(wlSlider.value) : 0.5,
+      channelWeight: channelSlider ? parseFloat(channelSlider.value) : 0.5,
       likedBonus: parseFloat(likedSlider.value),
       aiBackend: selectedBackend,
       useOllama: selectedBackend === 'ollama',
@@ -359,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load ALL saved settings in a single call to avoid race conditions
   chrome.storage.local.get([
-    'historyWeight', 'wlWeight', 'likedBonus', 'scanDislikes', 'syncAI',
+    'historyWeight', 'wlWeight', 'channelWeight', 'likedBonus', 'scanDislikes', 'syncAI',
     'filterMusicVideos', 'customPlaylists', 'syncLimit',
     'aiBackend', 'ollamaUrl', 'ollamaModel', 'openAIKey', 'openAIUrl', 'openAIModel'
   ], (result) => {
@@ -371,6 +374,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (result.wlWeight !== undefined && wlSlider) {
       wlSlider.value = result.wlWeight;
       wlValue.textContent = parseFloat(result.wlWeight).toFixed(2);
+    }
+    if (result.channelWeight !== undefined && channelSlider) {
+      channelSlider.value = result.channelWeight;
+      channelValue.textContent = parseFloat(result.channelWeight).toFixed(2);
     }
     if (result.likedBonus !== undefined) {
       likedSlider.value = result.likedBonus;
@@ -436,6 +443,13 @@ document.addEventListener('DOMContentLoaded', () => {
       wlValue.textContent = parseFloat(e.target.value).toFixed(2);
     });
     wlSlider.addEventListener('change', saveSettings);
+  }
+
+  if (channelSlider) {
+    channelSlider.addEventListener('input', (e) => {
+      channelValue.textContent = parseFloat(e.target.value).toFixed(2);
+    });
+    channelSlider.addEventListener('change', saveSettings);
   }
 
   likedSlider.addEventListener('input', (e) => {

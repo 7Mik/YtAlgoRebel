@@ -29,8 +29,11 @@ jobs:
         run: |
           cd dist
           zip -r ../chrome-extension.zip *
-          zip -r ../firefox-extension.zip *
           zip -r ../edge-extension.zip *
+          
+          # Firefox requires a Gecko ID in manifest.json
+          jq '.browser_specific_settings.gecko.id = "ytalgorebel@example.com"' manifest.json > manifest_tmp.json && mv manifest_tmp.json manifest.json
+          zip -r ../firefox-extension.zip *
           cd ..
           
       - name: Generate Release Tag

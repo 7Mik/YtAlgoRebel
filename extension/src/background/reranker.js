@@ -62,6 +62,22 @@ export function buildKeywordMap(entries) {
 }
 
 /**
+ * Build a channel frequency map from an array of {channel} entries.
+ * Returns an object where keys are exact channel names and values are view counts.
+ */
+export function buildChannelMap(entries) {
+    const freq = {};
+    for (const entry of entries) {
+        if (!entry.channel) continue;
+        const channelName = entry.channel.trim();
+        if (channelName) {
+            freq[channelName] = (freq[channelName] || 0) + 1;
+        }
+    }
+    return freq;
+}
+
+/**
  * Compute keyword affinity between a video and a keyword frequency map.
  * Returns a value between 0 and 1.
  */
@@ -102,7 +118,7 @@ function keywordAffinity(videoTitle, videoChannel, keywordMap) {
  * @param {number} likedBonus    - slider value for liked bonus (-1 to +1, default +0.5)
  * @returns {number} score between -1 and 1
  */
-export function scoreVideoKeywords(videoTitle, videoChannel, historyMap, likesMap, dislikesMap, wlMap, historyWeight = 0.5, likedBonus = 0.5, wlWeight = 0.5, customPlaylistsData = [], customPlaylistsConfig = []) {
+export function scoreVideoKeywords(videoTitle, videoChannel, historyMap, likesMap, dislikesMap, wlMap, historyWeight = 0.5, likedBonus = 0.5, wlWeight = 0.5, customPlaylistsData = [], customPlaylistsConfig = [], historyChannelMap = {}, likesChannelMap = {}, dislikesChannelMap = {}, wlChannelMap = {}, channelWeight = 0.5) {
     const histAffinity = keywordAffinity(videoTitle, videoChannel, historyMap);
     const likesAffinity = keywordAffinity(videoTitle, videoChannel, likesMap);
     const dislikesAffinity = keywordAffinity(videoTitle, videoChannel, dislikesMap);
@@ -117,6 +133,21 @@ export function scoreVideoKeywords(videoTitle, videoChannel, historyMap, likesMa
               + (likesAffinity * likedBonus)
               + (wlAffinity * wlWeight)
               - (dislikesAffinity * Math.abs(likedBonus));
+
+    // Calculate Channel Score
+    const histChannelMatch = channelAffinity(videoChannel, historyChannelMap);
+    const likesChannelMatch = channelAffinity(videoChannel, likesChannelMap);
+    const dislikesChannelMatch = channelAffinity(videoChannel, dislikesChannelMap);
+    const wlChannelMatch = channelAffinity(videoChannel, wlChannelMap);
+
+    let channelScore = (histChannelMatch * historyWeight)
+                     + (likesChannelMatch * likedBonus)
+                     + (wlChannelMatch * wlWeight)
+                     - (dislikesChannelMatch * Math.abs(likedBonus));
+
+    // Add baseline channel score
+    score += channelScore * channelWeight;
+
 
     // Add custom playlists keyword score
     if (customPlaylistsData.length > 0 && customPlaylistsConfig.length > 0) {
@@ -182,7 +213,7 @@ function maxSimilarity(vec, embeddings) {
  * @param {number} likedBonus
  * @returns {number} score between -1 and 1
  */
-export function scoreVideoAI(videoEmbedding, videoTitle, historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings, historyWeight = 0.5, likedBonus = 0.5, wlWeight = 0.5, customPlaylistsData = [], customPlaylistsConfig = []) {
+export function scoreVideoAI(videoEmbedding, videoTitle, videoChannel, historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings, historyWeight = 0.5, likedBonus = 0.5, wlWeight = 0.5, customPlaylistsData = [], customPlaylistsConfig = [], historyChannelMap = {}, likesChannelMap = {}, dislikesChannelMap = {}, wlChannelMap = {}, channelWeight = 0.5) {
     if (!videoEmbedding) return 0;
 
     const histSim = maxSimilarity(videoEmbedding, historyEmbeddings);
@@ -194,6 +225,21 @@ export function scoreVideoAI(videoEmbedding, videoTitle, historyEmbeddings, like
               + (likesSim * likedBonus)
               + (wlSim * wlWeight)
               - (dislikesSim * Math.abs(likedBonus));
+
+    // Calculate Channel Score
+    const histChannelMatch = channelAffinity(videoChannel, historyChannelMap);
+    const likesChannelMatch = channelAffinity(videoChannel, likesChannelMap);
+    const dislikesChannelMatch = channelAffinity(videoChannel, dislikesChannelMap);
+    const wlChannelMatch = channelAffinity(videoChannel, wlChannelMap);
+
+    let channelScore = (histChannelMatch * historyWeight)
+                     + (likesChannelMatch * likedBonus)
+                     + (wlChannelMatch * wlWeight)
+                     - (dislikesChannelMatch * Math.abs(likedBonus));
+
+    // Add baseline channel score
+    score += channelScore * channelWeight;
+
 
     // Add custom playlists AI score
     if (customPlaylistsData.length > 0 && customPlaylistsConfig.length > 0) {
@@ -216,6 +262,14 @@ export function scoreVideoAI(videoEmbedding, videoTitle, historyEmbeddings, like
     return Math.max(-1, Math.min(1, score));
 }
 
+
+// ── Channel scoring utility ──
+
+function channelAffinity(channel, map) {
+    if (!channel || !map || !map[channel.trim()]) return 0;
+    const count = map[channel.trim()];
+    return Math.min(1, count / 5); // 5 views from this channel = full score contribution
+}
 
 // ── Clickbait penalty (shared by both modes) ──
 

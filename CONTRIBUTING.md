@@ -23,8 +23,12 @@ Any PR should align with these core tenets:
 1. Ensure any new code is clean and well-commented.
 2. If you are modifying the AI Engine (`background/ai.js` or `background/reranker.js`), test the embeddings thoroughly.
 3. If you are tweaking the UI (`popup.css`), ensure the aesthetic remains premium (Glassmorphism, Dark mode natively).
-4. Update the `README.md` with details of changes to the interface, if applicable.
-5. Submit your PR and await review!
+4. **Local Testing:** Before doing a PR, you **must** test your changes locally on both **Chrome** and **Firefox**.
+   - **Chrome**: Load the `dist/` folder via `chrome://extensions` (Enable "Developer mode" -> "Load unpacked").
+   - **Firefox**: Load the `dist/` folder via `about:debugging` -> "This Firefox" -> "Load Temporary Add-on" (select `manifest.json`).
+5. Update the `README.md` with details of changes to the interface, if applicable.
+6. Submit your PR (make sure to check the boxes in the PR template).
+7. **Wait for the LLM PR reviewers** to analyze your code. You are expected to look at any problems they raise, try to fix them, and/or comment on them explaining why they aren't problems before a human review.
 
 ## 🐛 Bug Reports & Feature Requests
 
