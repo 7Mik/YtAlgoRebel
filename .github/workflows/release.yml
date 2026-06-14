@@ -3,6 +3,12 @@ name: Build and Release
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0 or 1.0.0-beta)'
+        required: true
+        type: string
 
 jobs:
   release:
@@ -38,13 +44,26 @@ jobs:
           
       - name: Generate Release Tag
         id: tag
-        run: echo "tag=v$(node -p "require('./package.json').version")-$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="v${{ inputs.version }}"
+            if [[ "${{ inputs.version }}" == *-* ]]; then
+              echo "prerelease=true" >> $GITHUB_OUTPUT
+            else
+              echo "prerelease=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            TAG_NAME="v$(node -p "require('./package.json').version")-$(date +'%Y%m%d%H%M%S')"
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
         
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.tag.outputs.tag }}
+          prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
           files: |
             chrome-extension.zip
             firefox-extension.zip
