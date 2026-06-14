@@ -100,7 +100,7 @@ Where:
 - $L$: Likes Affinity (0 to 1)
 - $W$: Watch Later Affinity (0 to 1)
 - $D$: Dislikes Affinity (0 to 1)
-- $C_{score}$: Channel Match Affinity (computed using exact channel names)
+- $C_{score}$: Combined Channel Score (weighted sum of channel match affinities: $(C_h \cdot w_h) + (C_l \cdot w_l) + (C_w \cdot w_w) - (C_d \cdot |w_l|)$)
 - $w_h, w_l, w_w, w_c$: Weights from user settings (sliders)
 - $P_c$: Clickbait Penalty (0 to 1)
 
