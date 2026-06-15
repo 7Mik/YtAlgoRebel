@@ -2,6 +2,16 @@ import { getItem } from '../utils/db.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   let keepAlivePort = null;
+  // ── i18n Initialization ──
+  document.querySelectorAll('[data-i18n]').forEach(elem => {
+    elem.textContent = chrome.i18n.getMessage(elem.dataset.i18n) || elem.textContent;
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(elem => {
+    elem.title = chrome.i18n.getMessage(elem.dataset.i18nTitle) || elem.title;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(elem => {
+    elem.placeholder = chrome.i18n.getMessage(elem.dataset.i18nPlaceholder) || elem.placeholder;
+  });
   // ── Tab Switching ──
   const tabHome = document.getElementById('tab-home');
   const tabSettings = document.getElementById('tab-settings');
@@ -45,19 +55,19 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function updateModeLabel() {
-    modeLabel.textContent = aiToggle.checked ? '🧠 AI Mode' : '⚡ Keyword Mode';
+    modeLabel.textContent = aiToggle.checked ? chrome.i18n.getMessage('aiMode') : chrome.i18n.getMessage('keywordMode');
   }
 
   findBtn.addEventListener('click', async () => {
     // Show loading state
     findBtn.disabled = true;
     findBtn.classList.add('loading');
-    findText.textContent = 'Scanning page...';
+    findText.textContent = chrome.i18n.getMessage('scanningPage');
     
     // Show skeleton loading in video list
     videoList.innerHTML = generateSkeletons(4);
     resultsHeader.classList.remove('hidden');
-    resultsBadge.textContent = 'Scanning...';
+    resultsBadge.textContent = chrome.i18n.getMessage('scanningBadge');
     if (emptyState) emptyState.remove();
 
     // Show progress bar
@@ -98,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      findText.textContent = `Scoring ${pageVideos.length} videos...`;
+      findText.textContent = chrome.i18n.getMessage('scoringNVideos', [pageVideos.length.toString()]);
 
       // 2. Send to background for scoring
       const useAI = aiToggle.checked;
@@ -110,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (result && result.success && result.videos.length > 0) {
         renderResults(result.videos);
-        resultsBadge.textContent = `Top ${result.videos.length}`;
+        resultsBadge.textContent = chrome.i18n.getMessage('topNVideos', [result.videos.length.toString()]);
         
         // 3. Also highlight them on the page
         chrome.runtime.sendMessage({
@@ -137,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetFindBtn() {
     findBtn.disabled = false;
     findBtn.classList.remove('loading');
-    findText.textContent = 'Find Videos';
+    findText.textContent = chrome.i18n.getMessage('findVideos');
   }
 
   function showError(msg) {
@@ -510,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
     keepAlivePort = chrome.runtime.connect({ name: "keepalive" });
 
     syncBtn.disabled = true;
-    syncBtn.innerText = 'Syncing...';
+    syncBtn.innerText = chrome.i18n.getMessage('syncingBtn');
     syncStatus.classList.remove('hidden');
     if (syncProgressBar) syncProgressBar.style.width = '0%';
     syncProgress.innerText = '0';
@@ -522,9 +532,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const syncLimit = result.syncLimit || 500;
 
       if (syncAI) {
-        if (syncStatusMsg) syncStatusMsg.innerText = 'Syncing & Generating AI Embeddings (Slow)...';
+        if (syncStatusMsg) syncStatusMsg.innerText = chrome.i18n.getMessage('syncingAiEmbeddings');
       } else {
-        if (syncStatusMsg) syncStatusMsg.innerText = 'Scraping YouTube data...';
+        if (syncStatusMsg) syncStatusMsg.innerText = chrome.i18n.getMessage('scrapingData');
       }
 
       chrome.runtime.sendMessage({ 
@@ -602,13 +612,11 @@ document.addEventListener('DOMContentLoaded', () => {
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'SYNC_PROGRESS') {
       if (syncStatusMsg) {
-        chrome.storage.local.get(['syncAI'], (res) => {
-          if (res.syncAI) {
-            syncStatusMsg.innerText = 'Generating AI Embeddings...';
-          } else {
-            syncStatusMsg.innerText = 'Scraping YouTube data...';
-          }
-        });
+        if (message.phase === 'ai') {
+          syncStatusMsg.innerText = chrome.i18n.getMessage('generatingAi');
+        } else {
+          syncStatusMsg.innerText = chrome.i18n.getMessage('scrapingData');
+        }
       }
       if (syncProgress) syncProgress.innerText = message.current;
       if (syncTotal) syncTotal.innerText = message.total;
@@ -616,7 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (syncProgressBar) syncProgressBar.style.width = `${percent}%`;
     } else if (message.type === 'MODEL_DOWNLOAD_PROGRESS') {
       if (syncStatusMsg) {
-        syncStatusMsg.innerText = `Downloading AI Model (~90MB)...`;
+        syncStatusMsg.innerText = chrome.i18n.getMessage('downloadingAi');
       }
       if (syncProgressBar) {
         syncProgressBar.style.width = `${Math.round(message.progress)}%`;
@@ -635,14 +643,14 @@ document.addEventListener('DOMContentLoaded', () => {
         keepAlivePort = null;
       }
 
-      syncBtn.innerText = message.success ? '✓ Sync Completed' : '✗ Sync Failed';
+      syncBtn.innerText = message.success ? chrome.i18n.getMessage('syncCompleted') : chrome.i18n.getMessage('syncFailed');
       if (message.success) syncBtn.style.background = 'hsl(145, 63%, 42%)';
       
       updateDbStats(); // Refresh stats immediately
       
       setTimeout(() => {
         syncBtn.disabled = false;
-        syncBtn.innerText = 'Sync Taste Profile';
+        syncBtn.innerText = chrome.i18n.getMessage('syncBtn');
         syncBtn.style.background = '';
         syncStatus.classList.add('hidden');
       }, 3000);
