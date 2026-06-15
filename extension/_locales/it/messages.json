@@ -7,6 +7,8 @@
   "keywordMode": { "message": "⚡ Modalità Parole Chiave", "description": "Label for keyword mode" },
   "aiMode": { "message": "🧠 IA", "description": "Label for AI mode" },
   "filterMusic": { "message": "Filtra Musica:", "description": "Label for filter music toggle" },
+  "aiModeTitle": { "message": "Attiva la modalità IA per corrispondenze semantiche", "description": "Tooltip for AI mode" },
+  "filterMusicTitle": { "message": "Filtra i video musicali dalle raccomandazioni", "description": "Tooltip for filter music" },
   "aiWarningTitle": { "message": "Embeddings IA Non Sincronizzati", "description": "Title for AI warning" },
   "aiWarningDesc": { "message": "Hai abilitato la modalità IA ma il tuo profilo gusti non ha ancora gli embeddings. Vai nelle impostazioni, seleziona 'Sincronizza Embeddings IA' e clicca sincronizza.", "description": "Description for AI warning" },
   "scoringVideos": { "message": "Valutazione video in corso...", "description": "Status message while scoring" },
@@ -50,10 +52,30 @@
   "apiEndpoint": { "message": "URL Endpoint API", "description": "Label for API endpoint" },
   "apiKey": { "message": "Chiave API", "description": "Label for API key" },
   "apiModel": { "message": "Nome del Modello", "description": "Label for API model" },
+  "ollamaModelPlaceholder": { "message": "es. mxbai-embed-large:latest", "description": "Placeholder for Ollama model" },
+  "apiModelPlaceholder": { "message": "es. text-embedding-3-small", "description": "Placeholder for API model" },
   "scanningPage": { "message": "Scansione pagina...", "description": "Status text" },
   "scanningBadge": { "message": "Scansione...", "description": "Badge text" },
-  "scoringNVideos": { "message": "Valutazione di $1 video...", "description": "Status text with number" },
-  "topNVideos": { "message": "Migliori $1", "description": "Badge text with number" },
+  "scoringNVideos": {
+    "message": "Valutazione di $NUM$ video...",
+    "description": "Status text with number",
+    "placeholders": {
+      "num": {
+        "content": "$1",
+        "example": "10"
+      }
+    }
+  },
+  "topNVideos": {
+    "message": "Migliori $NUM$",
+    "description": "Badge text with number",
+    "placeholders": {
+      "num": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
   "syncingBtn": { "message": "Sincronizzazione...", "description": "Button text while syncing" },
   "syncingAiEmbeddings": { "message": "Sincronizzazione & Generazione Embeddings IA (Lento)...", "description": "Status text" },
   "scrapingData": { "message": "Estrazione dati da YouTube...", "description": "Status text" },

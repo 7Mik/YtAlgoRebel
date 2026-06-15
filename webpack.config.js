@@ -18,7 +18,7 @@ module.exports = {
       patterns: [
         { from: 'extension/manifest.json', to: 'manifest.json' },
         { from: 'extension/assets', to: 'assets', noErrorOnMissing: true },
-        { from: 'extension/_locales', to: '_locales', noErrorOnMissing: true },
+        { from: 'extension/_locales', to: '_locales' },
         { from: 'extension/src/popup/popup.html', to: 'popup.html' },
         { from: 'extension/src/popup/popup.css', to: 'popup.css' }
       ],

@@ -4,7 +4,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let keepAlivePort = null;
   // ── i18n Initialization ──
   document.querySelectorAll('[data-i18n]').forEach(elem => {
-    elem.textContent = chrome.i18n.getMessage(elem.dataset.i18n) || elem.textContent;
+    const message = chrome.i18n.getMessage(elem.dataset.i18n);
+    if (message) {
+      if (elem.querySelector('*')) {
+        elem.innerHTML = message;
+      } else {
+        elem.textContent = message;
+      }
+    } else if (!elem.textContent) {
+      elem.textContent = elem.dataset.i18n;
+    }
   });
   document.querySelectorAll('[data-i18n-title]').forEach(elem => {
     elem.title = chrome.i18n.getMessage(elem.dataset.i18nTitle) || elem.title;
@@ -221,8 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const channelValue = document.getElementById('channel-weight-value');
   const likedSlider = document.getElementById('liked-bonus');
   const likedValue = document.getElementById('liked-bonus-value');
-  const likedDisplay = document.getElementById('liked-display');
-  const dislikedDisplay = document.getElementById('disliked-display');
+
   const syncLimitSlider = document.getElementById('sync-limit');
   const syncLimitValue = document.getElementById('sync-limit-value');
 
@@ -477,8 +485,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateLikedDisplay(val) {
     const v = parseFloat(val);
     likedValue.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
-    likedDisplay.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
-    dislikedDisplay.textContent = (v >= 0 ? '−' : '+') + Math.abs(v).toFixed(2);
     
     // Color the value display
     if (v > 0) {
