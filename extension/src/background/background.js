@@ -481,7 +481,7 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
     if (profile.customPlaylistsData) {
       profile.customPlaylistsData.forEach(pl => total += pl.entries.length);
     }
-    if (progressCallback) progressCallback(total, total, 'ai');
+    if (progressCallback) progressCallback(total, total, 'scrape');
   }
   
   // Cleanup temp entries array
