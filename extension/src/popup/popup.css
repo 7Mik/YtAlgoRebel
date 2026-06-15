@@ -81,17 +81,11 @@ h2 {
 }
 
 .rebel-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 28px;
   height: 28px;
-  background: linear-gradient(135deg, var(--primary), hsl(10, 80%, 50%));
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: bold;
-  color: white;
-  box-shadow: 0 4px 12px hsla(348, 83%, 47%, 0.3);
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px hsla(348, 83%, 47%, 0.2);
 }
 
 .header-actions {
