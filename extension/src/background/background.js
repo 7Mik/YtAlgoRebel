@@ -430,7 +430,7 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
         if (emb) profile.historyEmbeddings.push(emb);
       } catch (e) { console.warn("Failed embedding for", entry.title); }
       processed++;
-      if (progressCallback) progressCallback(processed, total);
+      if (progressCallback) progressCallback(processed, total, 'ai');
     }
     
     // Likes embeddings
@@ -440,7 +440,7 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
         if (emb) profile.likesEmbeddings.push(emb);
       } catch (e) { console.warn("Failed embedding for", entry.title); }
       processed++;
-      if (progressCallback) progressCallback(processed, total);
+      if (progressCallback) progressCallback(processed, total, 'ai');
     }
     
     // Dislikes embeddings
@@ -450,7 +450,7 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
         if (emb) profile.dislikesEmbeddings.push(emb);
       } catch (e) { console.warn("Failed embedding for", entry.title); }
       processed++;
-      if (progressCallback) progressCallback(processed, total);
+      if (progressCallback) progressCallback(processed, total, 'ai');
     }
 
     // Watch Later embeddings
@@ -460,7 +460,7 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
         if (emb) profile.wlEmbeddings.push(emb);
       } catch (e) { console.warn("Failed embedding for", entry.title); }
       processed++;
-      if (progressCallback) progressCallback(processed, total);
+      if (progressCallback) progressCallback(processed, total, 'ai');
     }
 
     // Custom playlists embeddings
@@ -472,7 +472,7 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
             if (emb) pl.embeddings.push(emb);
           } catch (e) { console.warn("Failed embedding", entry.title); }
           processed++;
-          if (progressCallback) progressCallback(processed, total);
+          if (progressCallback) progressCallback(processed, total, 'ai');
         }
       }
     }
@@ -481,7 +481,7 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
     if (profile.customPlaylistsData) {
       profile.customPlaylistsData.forEach(pl => total += pl.entries.length);
     }
-    if (progressCallback) progressCallback(total, total);
+    if (progressCallback) progressCallback(total, total, 'scrape');
   }
   
   // Cleanup temp entries array
@@ -509,8 +509,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const useAI = message.useAI || false;
     const scanDislikes = message.scanDislikes || false;
     const syncLimit = message.syncLimit || 500;
-    buildTasteProfile(useAI, scanDislikes, syncLimit, (current, total) => {
-        chrome.runtime.sendMessage({ type: 'SYNC_PROGRESS', current, total }).catch(() => {});
+    buildTasteProfile(useAI, scanDislikes, syncLimit, (current, total, phase) => {
+        chrome.runtime.sendMessage({ type: 'SYNC_PROGRESS', current, total, phase }).catch(() => {});
     }).then(success => {
         chrome.runtime.sendMessage({ type: 'SYNC_COMPLETE', success }).catch(() => {});
     });
