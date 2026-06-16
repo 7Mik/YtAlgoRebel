@@ -2,3 +2,4 @@ node_modules/
 dist/
 /scratch
 *.zip
+linter_report.json
