@@ -31,15 +31,10 @@ jobs:
       - name: Build extension
         run: npm run build
         
-      - name: Package extensions
+      - name: Package extension
         run: |
           cd dist
-          zip -r ../chrome-extension.zip *
-          zip -r ../edge-extension.zip *
-          
-          # Firefox requires a Gecko ID in manifest.json
-          jq '.browser_specific_settings.gecko.id = "ytalgorebel@example.com"' manifest.json > manifest_tmp.json && mv manifest_tmp.json manifest.json
-          zip -r ../firefox-extension.zip *
+          zip -r ../YtAlgoRebel_Universal.zip *
           cd ..
           
       - name: Generate Release Tag
@@ -67,7 +62,5 @@ jobs:
           name: Release ${{ steps.tag.outputs.tag }}
           prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
           files: |
-            chrome-extension.zip
-            firefox-extension.zip
-            edge-extension.zip
+            YtAlgoRebel_Universal.zip
           generate_release_notes: true
