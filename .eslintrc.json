@@ -8,7 +8,7 @@
     "eslint:recommended",
     "plugin:sonarjs/recommended-legacy",
     "plugin:security/recommended-legacy",
-    "plugin:no-unsanitized/recommended-legacy",
+    "plugin:no-unsanitized/DOM",
     "prettier"
   ],
   "parserOptions": {
