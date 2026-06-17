@@ -4,13 +4,34 @@
     "es2021": true,
     "webextensions": true
   },
-  "extends": "eslint:recommended",
+  "extends": [
+    "eslint:recommended",
+    "plugin:sonarjs/recommended-legacy",
+    "plugin:security/recommended-legacy",
+    "plugin:no-unsanitized/recommended-legacy",
+    "prettier"
+  ],
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
+  "plugins": ["sonarjs", "security", "no-unsanitized"],
+  "overrides": [
+    {
+      "files": ["webpack.config.js", "tests/**/*.js"],
+      "env": {
+        "node": true
+      }
+    }
+  ],
   "rules": {
     "no-unused-vars": "warn",
-    "no-console": "off"
+    "no-console": "off",
+    "sonarjs/cognitive-complexity": "warn",
+    "sonarjs/no-nested-functions": "warn",
+    "sonarjs/no-ignored-exceptions": "warn",
+    "sonarjs/slow-regex": "warn",
+    "sonarjs/no-nested-conditional": "warn",
+    "sonarjs/hashing": "warn"
   }
 }

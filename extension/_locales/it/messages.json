@@ -1,59 +1,164 @@
 {
   "extName": { "message": "YtAlgoRebel", "description": "Name of the extension" },
-  "extDesc": { "message": "Riprendi il controllo dell'algoritmo di YouTube.", "description": "Description of the extension" },
+  "extDesc": {
+    "message": "Riprendi il controllo dell'algoritmo di YouTube.",
+    "description": "Description of the extension"
+  },
   "tabHome": { "message": "Home", "description": "Tooltip for Home tab" },
   "tabSettings": { "message": "Impostazioni", "description": "Tooltip for Settings tab" },
   "findVideos": { "message": "Trova Video", "description": "Button text to find videos" },
-  "keywordMode": { "message": "⚡ Modalità Parole Chiave", "description": "Label for keyword mode" },
+  "keywordMode": {
+    "message": "⚡ Modalità Parole Chiave",
+    "description": "Label for keyword mode"
+  },
   "aiMode": { "message": "🧠 IA", "description": "Label for AI mode" },
   "filterMusic": { "message": "Filtra Musica:", "description": "Label for filter music toggle" },
-  "aiModeTitle": { "message": "Attiva la modalità IA per corrispondenze semantiche", "description": "Tooltip for AI mode" },
-  "filterMusicTitle": { "message": "Filtra i video musicali dalle raccomandazioni", "description": "Tooltip for filter music" },
-  "aiWarningTitle": { "message": "Embeddings IA Non Sincronizzati", "description": "Title for AI warning" },
-  "aiWarningDesc": { "message": "Hai abilitato la modalità IA ma il tuo profilo gusti non ha ancora gli embeddings. Vai nelle impostazioni, seleziona 'Sincronizza Embeddings IA' e clicca sincronizza.", "description": "Description for AI warning" },
-  "scoringVideos": { "message": "Valutazione video in corso...", "description": "Status message while scoring" },
+  "aiModeTitle": {
+    "message": "Attiva la modalità IA per corrispondenze semantiche",
+    "description": "Tooltip for AI mode"
+  },
+  "filterMusicTitle": {
+    "message": "Filtra i video musicali dalle raccomandazioni",
+    "description": "Tooltip for filter music"
+  },
+  "aiWarningTitle": {
+    "message": "Embeddings IA Non Sincronizzati",
+    "description": "Title for AI warning"
+  },
+  "aiWarningDesc": {
+    "message": "Hai abilitato la modalità IA ma il tuo profilo gusti non ha ancora gli embeddings. Vai nelle impostazioni, seleziona 'Sincronizza Embeddings IA' e clicca sincronizza.",
+    "description": "Description for AI warning"
+  },
+  "scoringVideos": {
+    "message": "Valutazione video in corso...",
+    "description": "Status message while scoring"
+  },
   "topPicks": { "message": "Le Tue Scelte Migliori", "description": "Header for top picks" },
   "zeroFound": { "message": "0 trovati", "description": "Badge when no videos found" },
-  "emptyStateDesc": { "message": "Clicca Trova Video per scansionare la pagina YouTube attuale e scoprire i video migliori per te.", "description": "Empty state description" },
-  "emptyStateHint": { "message": "Assicurati prima di aver sincronizzato il Profilo Gusti nelle Impostazioni!", "description": "Empty state hint" },
-  "tasteProfileTitle": { "message": "Profilo Gusti", "description": "Title for taste profile section" },
-  "tasteProfileDesc": { "message": "Scansiona la Cronologia, i video Piaciuti, Guarda Più Tardi e Non Mi Piace per calibrare i punteggi.", "description": "Description for taste profile" },
-  "loadingStats": { "message": "Caricamento statistiche profilo...", "description": "Loading message for stats" },
-  "scanDislikes": { "message": "Scansiona le mie attività per i Non Mi Piace", "description": "Label for scanning dislikes" },
-  "syncAiEmbeddings": { "message": "Sincronizza Embeddings IA (Lento)", "description": "Label for syncing AI" },
-  "syncLimit": { "message": "Limite Sincronizzazione (per feed)", "description": "Label for sync limit" },
+  "emptyStateDesc": {
+    "message": "Clicca Trova Video per scansionare la pagina YouTube attuale e scoprire i video migliori per te.",
+    "description": "Empty state description"
+  },
+  "emptyStateHint": {
+    "message": "Assicurati prima di aver sincronizzato il Profilo Gusti nelle Impostazioni!",
+    "description": "Empty state hint"
+  },
+  "tasteProfileTitle": {
+    "message": "Profilo Gusti",
+    "description": "Title for taste profile section"
+  },
+  "tasteProfileDesc": {
+    "message": "Scansiona la Cronologia, i video Piaciuti, Guarda Più Tardi e Non Mi Piace per calibrare i punteggi.",
+    "description": "Description for taste profile"
+  },
+  "loadingStats": {
+    "message": "Caricamento statistiche profilo...",
+    "description": "Loading message for stats"
+  },
+  "scanDislikes": {
+    "message": "Scansiona le mie attività per i Non Mi Piace",
+    "description": "Label for scanning dislikes"
+  },
+  "syncAiEmbeddings": {
+    "message": "Sincronizza Embeddings IA (Lento)",
+    "description": "Label for syncing AI"
+  },
+  "syncLimit": {
+    "message": "Limite Sincronizzazione (per feed)",
+    "description": "Label for sync limit"
+  },
   "items100": { "message": "100 elementi", "description": "Label for 100 items" },
   "items2000": { "message": "2000 elementi", "description": "Label for 2000 items" },
-  "syncLimitWarning": { "message": "⚠️ Valori alti permettono una maggiore profondità ma potrebbero attivare i limiti API di YouTube o causare forti rallentamenti (specialmente con Embeddings IA).", "description": "Warning for sync limit" },
+  "syncLimitWarning": {
+    "message": "⚠️ Valori alti permettono una maggiore profondità ma potrebbero attivare i limiti API di YouTube o causare forti rallentamenti (specialmente con Embeddings IA).",
+    "description": "Warning for sync limit"
+  },
   "syncBtn": { "message": "Sincronizza Profilo", "description": "Button text to sync" },
-  "syncingDb": { "message": "Sincronizzazione database...", "description": "Status message while syncing" },
-  "syncWarning": { "message": "⚠️ Mantieni questo popup aperto durante la sincronizzazione per non interromperla.", "description": "Warning to keep popup open" },
-  "scoringWeightsTitle": { "message": "Pesi di Valutazione", "description": "Title for scoring weights section" },
-  "scoringWeightsDesc": { "message": "Controlla quanto influenzano le raccomandazioni i video visti, piaciuti, da guardare e non piaciuti.", "description": "Description for scoring weights" },
+  "syncingDb": {
+    "message": "Sincronizzazione database...",
+    "description": "Status message while syncing"
+  },
+  "syncWarning": {
+    "message": "⚠️ Mantieni questo popup aperto durante la sincronizzazione per non interromperla.",
+    "description": "Warning to keep popup open"
+  },
+  "scoringWeightsTitle": {
+    "message": "Pesi di Valutazione",
+    "description": "Title for scoring weights section"
+  },
+  "scoringWeightsDesc": {
+    "message": "Controlla quanto influenzano le raccomandazioni i video visti, piaciuti, da guardare e non piaciuti.",
+    "description": "Description for scoring weights"
+  },
   "historyWeight": { "message": "Peso Cronologia", "description": "Label for history weight" },
   "wlWeight": { "message": "Peso Guarda Più Tardi", "description": "Label for watch later weight" },
-  "creatorPref": { "message": "Preferenza Creatore", "description": "Label for creator preference" },
-  "creatorPrefHint": { "message": "Quanto dovremmo preferire i canali che hai già visto/piaciuto?", "description": "Hint for creator preference" },
-  "likedBonusTitle": { "message": "Bonus Piaciuti / Non Piaciuti", "description": "Label for liked/disliked bonus" },
+  "creatorPref": {
+    "message": "Preferenza Creatore",
+    "description": "Label for creator preference"
+  },
+  "creatorPrefHint": {
+    "message": "Quanto dovremmo preferire i canali che hai già visto/piaciuto?",
+    "description": "Hint for creator preference"
+  },
+  "likedBonusTitle": {
+    "message": "Bonus Piaciuti / Non Piaciuti",
+    "description": "Label for liked/disliked bonus"
+  },
   "ignore": { "message": "Ignora", "description": "Slider label ignore" },
   "strong": { "message": "Forte", "description": "Slider label strong" },
   "neutral": { "message": "Neutro", "description": "Slider label neutral" },
-  "likedBonusHint": { "message": "I video piaciuti ricevono un bonus, i non piaciuti una penalità.", "description": "Hint for liked bonus" },
-  "customPlaylistsTitle": { "message": "Playlist Personalizzate", "description": "Title for custom playlists section" },
-  "customPlaylistsDesc": { "message": "Aggiungi playlist per dare loro un bonus o una penalità rispetto ai video normali.", "description": "Description for custom playlists" },
-  "addPlaylistBtn": { "message": "+ Aggiungi Playlist", "description": "Button text to add playlist" },
-  "aiBackendTitle": { "message": "Configurazione Backend IA", "description": "Title for AI backend config" },
-  "aiBackendDesc": { "message": "Opzionale: scegli un provider IA per l'analisi semantica (richiede attivazione IA).", "description": "Description for AI backend config" },
-  "backendLocal": { "message": "Locale (Transformers.js)", "description": "Label for local backend" },
-  "backendOllama": { "message": "Ollama (Server Locale)", "description": "Label for Ollama backend" },
-  "backendOpenai": { "message": "Compatibile OpenAI (Remoto)", "description": "Label for OpenAI backend" },
-  "ollamaEndpoint": { "message": "URL Endpoint Ollama", "description": "Label for Ollama endpoint" },
+  "likedBonusHint": {
+    "message": "I video piaciuti ricevono un bonus, i non piaciuti una penalità.",
+    "description": "Hint for liked bonus"
+  },
+  "customPlaylistsTitle": {
+    "message": "Playlist Personalizzate",
+    "description": "Title for custom playlists section"
+  },
+  "customPlaylistsDesc": {
+    "message": "Aggiungi playlist per dare loro un bonus o una penalità rispetto ai video normali.",
+    "description": "Description for custom playlists"
+  },
+  "addPlaylistBtn": {
+    "message": "+ Aggiungi Playlist",
+    "description": "Button text to add playlist"
+  },
+  "aiBackendTitle": {
+    "message": "Configurazione Backend IA",
+    "description": "Title for AI backend config"
+  },
+  "aiBackendDesc": {
+    "message": "Opzionale: scegli un provider IA per l'analisi semantica (richiede attivazione IA).",
+    "description": "Description for AI backend config"
+  },
+  "backendLocal": {
+    "message": "Locale (Transformers.js)",
+    "description": "Label for local backend"
+  },
+  "backendOllama": {
+    "message": "Ollama (Server Locale)",
+    "description": "Label for Ollama backend"
+  },
+  "backendOpenai": {
+    "message": "Compatibile OpenAI (Remoto)",
+    "description": "Label for OpenAI backend"
+  },
+  "ollamaEndpoint": {
+    "message": "URL Endpoint Ollama",
+    "description": "Label for Ollama endpoint"
+  },
   "ollamaModel": { "message": "Nome Modello Ollama", "description": "Label for Ollama model" },
   "apiEndpoint": { "message": "URL Endpoint API", "description": "Label for API endpoint" },
   "apiKey": { "message": "Chiave API", "description": "Label for API key" },
   "apiModel": { "message": "Nome del Modello", "description": "Label for API model" },
-  "ollamaModelPlaceholder": { "message": "es. mxbai-embed-large:latest", "description": "Placeholder for Ollama model" },
-  "apiModelPlaceholder": { "message": "es. text-embedding-3-small", "description": "Placeholder for API model" },
+  "ollamaModelPlaceholder": {
+    "message": "es. mxbai-embed-large:latest",
+    "description": "Placeholder for Ollama model"
+  },
+  "apiModelPlaceholder": {
+    "message": "es. text-embedding-3-small",
+    "description": "Placeholder for API model"
+  },
   "scanningPage": { "message": "Scansione pagina...", "description": "Status text" },
   "scanningBadge": { "message": "Scansione...", "description": "Badge text" },
   "scoringNVideos": {
@@ -77,10 +182,19 @@
     }
   },
   "syncingBtn": { "message": "Sincronizzazione...", "description": "Button text while syncing" },
-  "syncingAiEmbeddings": { "message": "Sincronizzazione & Generazione Embeddings IA (Lento)...", "description": "Status text" },
+  "syncingAiEmbeddings": {
+    "message": "Sincronizzazione & Generazione Embeddings IA (Lento)...",
+    "description": "Status text"
+  },
   "scrapingData": { "message": "Estrazione dati da YouTube...", "description": "Status text" },
   "generatingAi": { "message": "Generazione Embeddings IA...", "description": "Status text" },
-  "downloadingAi": { "message": "Scaricamento Modello IA (~90MB)...", "description": "Status text" },
-  "syncCompleted": { "message": "✓ Sincronizzazione Completata", "description": "Button text success" },
+  "downloadingAi": {
+    "message": "Scaricamento Modello IA (~90MB)...",
+    "description": "Status text"
+  },
+  "syncCompleted": {
+    "message": "✓ Sincronizzazione Completata",
+    "description": "Button text success"
+  },
   "syncFailed": { "message": "✗ Sincronizzazione Fallita", "description": "Button text failure" }
 }

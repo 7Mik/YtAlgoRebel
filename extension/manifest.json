@@ -4,15 +4,8 @@
   "version": "1.0",
   "description": "__MSG_extDesc__",
   "default_locale": "en",
-  "permissions": [
-    "storage",
-    "scripting",
-    "tabs"
-  ],
-  "host_permissions": [
-    "*://*.youtube.com/*",
-    "*://myactivity.google.com/*"
-  ],
+  "permissions": ["storage", "scripting", "tabs"],
+  "host_permissions": ["*://*.youtube.com/*", "*://myactivity.google.com/*"],
   "icons": {
     "16": "assets/icon-16.png",
     "48": "assets/icon-48.png",

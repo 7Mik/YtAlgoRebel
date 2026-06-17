@@ -4,8 +4,9 @@ First off, thank you for considering contributing to YtAlgoRebel! It's people li
 
 ## 🧠 Philosophy
 
-Our goal is to build an uncompromisingly local, privacy-first, and highly intelligent AI reranker. 
+Our goal is to build an uncompromisingly local, privacy-first, and highly intelligent AI reranker.
 Any PR should align with these core tenets:
+
 - **No external server calls** (except for locally-hosted instances like Ollama).
 - **Fast & Lightweight**.
 - **Aesthetic excellence** (Vanilla CSS only, no massive frameworks).
@@ -33,6 +34,7 @@ Any PR should align with these core tenets:
 ## 🐛 Bug Reports & Feature Requests
 
 Please use the GitHub Issue tracker. Provide as much context as possible:
+
 - Your Browser and Version
 - Whether you are using WebAssembly or Ollama
 - Steps to reproduce the issue

@@ -24,7 +24,7 @@ window.addEventListener('message', (event) => {
     chrome.runtime.sendMessage({
       type: 'YOUTUBE_API_RESPONSE',
       url: event.data.url,
-      data: event.data.data
+      data: event.data.data,
     });
   }
 });
@@ -42,7 +42,7 @@ function getInnerTubeConfigFromMainWorld() {
     };
     window.addEventListener('message', handler);
     window.postMessage({ type: 'YT_ALGO_REBEL_GET_CONFIG' }, '*');
-    
+
     // Safety timeout: fallback to empty/null config if no response in 2 seconds
     timeoutId = setTimeout(() => {
       window.removeEventListener('message', handler);
@@ -58,37 +58,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ videos });
     return true;
   }
-  
+
   if (message.type === 'RUN_TASTE_SCRAPE') {
-    console.log("YtAlgoRebel Content Script: RUN_TASTE_SCRAPE message received");
+    console.log('YtAlgoRebel Content Script: RUN_TASTE_SCRAPE message received');
     const customPlaylists = message.customPlaylists || [];
     getInnerTubeConfigFromMainWorld()
-      .then(config => {
-        console.log("YtAlgoRebel Content Script: InnerTube config obtained from page (sanitized):", {
-          apiKey: config?.apiKey ? 'present' : 'missing',
-          clientVersion: config?.clientVersion,
-          hasIdToken: !!config?.idToken
-        });
+      .then((config) => {
+        console.log(
+          'YtAlgoRebel Content Script: InnerTube config obtained from page (sanitized):',
+          {
+            apiKey: config?.apiKey ? 'present' : 'missing',
+            clientVersion: config?.clientVersion,
+            hasIdToken: !!config?.idToken,
+          }
+        );
         const syncLimit = message.syncLimit || 500;
         return scrapeTasteData(config, customPlaylists, syncLimit);
       })
-      .then(data => {
-        console.log("YtAlgoRebel Content Script: Taste data scraped successfully", {
+      .then((data) => {
+        console.log('YtAlgoRebel Content Script: Taste data scraped successfully', {
           historyCount: data?.historyEntries?.length,
           likesCount: data?.likesEntries?.length,
           wlCount: data?.wlEntries?.length,
           dislikesCount: data?.dislikesEntries?.length,
-          customPlaylistsCount: data?.customPlaylistsData?.length
+          customPlaylistsCount: data?.customPlaylistsData?.length,
         });
         sendResponse({ success: true, data });
       })
-      .catch(err => {
-        console.error("YtAlgoRebel Content Script: Taste data scrape failed", err);
+      .catch((err) => {
+        console.error('YtAlgoRebel Content Script: Taste data scrape failed', err);
         sendResponse({ success: false, error: err.message || String(err) });
       });
     return true; // Keep message channel open for async response
   }
-  
+
   if (message.type === 'HIGHLIGHT_VIDEOS') {
     highlightVideosOnPage(message.videos);
   }
@@ -103,7 +106,7 @@ function isMusicVideo(el, title, channel) {
   if (channelLower.endsWith(' - topic') || channelLower.endsWith('vevo')) {
     return true;
   }
-  
+
   const titleLower = title.toLowerCase();
   const musicKeywords = [
     'official music video',
@@ -117,32 +120,45 @@ function isMusicVideo(el, title, channel) {
     'videoclip',
     'video oficial',
     'official visualizer',
-    'visualizer video'
+    'visualizer video',
   ];
-  if (musicKeywords.some(keyword => titleLower.includes(keyword))) {
+  if (musicKeywords.some((keyword) => titleLower.includes(keyword))) {
     return true;
   }
-  
+
   // Filter auto-generated YouTube Mixes
-  if (titleLower.startsWith('mix - ') || titleLower.includes('il tuo mix') || titleLower.includes('my mix') || titleLower.includes('youtube mix')) {
+  if (
+    titleLower.startsWith('mix - ') ||
+    titleLower.includes('il tuo mix') ||
+    titleLower.includes('my mix') ||
+    titleLower.includes('youtube mix')
+  ) {
     return true;
   }
-  
+
   if (el) {
-    const artistBadge = el.querySelector('.badge-style-type-verified-artist, ytd-badge-supported-renderer[class*="verified-artist"], [aria-label="Official Artist Channel"], [title="Official Artist Channel"]');
+    const artistBadge = el.querySelector(
+      '.badge-style-type-verified-artist, ytd-badge-supported-renderer[class*="verified-artist"], [aria-label="Official Artist Channel"], [title="Official Artist Channel"]'
+    );
     if (artistBadge) return true;
-    
+
     // Check for paths with music-note icon
     const paths = el.querySelectorAll('path');
     for (const path of paths) {
       const d = path.getAttribute('d') || '';
-      if (d.includes('M12 3v10.55') || d.includes('M12,3v10.55') || d.includes('M12 3v13.55') ||
-          d.includes('m12 3v10.55') || d.includes('m12,3v10.55') || d.includes('m12 3v13.55')) {
+      if (
+        d.includes('M12 3v10.55') ||
+        d.includes('M12,3v10.55') ||
+        d.includes('M12 3v13.55') ||
+        d.includes('m12 3v10.55') ||
+        d.includes('m12,3v10.55') ||
+        d.includes('m12 3v13.55')
+      ) {
         return true;
       }
     }
   }
-  
+
   return false;
 }
 
@@ -153,58 +169,64 @@ function isMusicVideo(el, title, channel) {
 function scrapeAllVideosFromDOM() {
   const videos = [];
   const seen = new Set();
-  
+
   // All possible YouTube video container selectors
   const selectors = [
     'ytd-rich-item-renderer',
     'ytd-grid-video-renderer',
     'ytd-video-renderer',
     'ytd-compact-video-renderer',
-    'ytd-reel-item-renderer'
+    'ytd-reel-item-renderer',
   ];
-  
+
   for (const selector of selectors) {
     const elements = document.querySelectorAll(selector);
-    elements.forEach(el => {
+    elements.forEach((el) => {
       try {
         // Skip ad slots
         if (el.querySelector('ytd-ad-slot-renderer')) return;
-        
+
         // Extract video ID from the link href
-        const link = el.querySelector('a#video-title, a#video-title-link, a.yt-simple-endpoint[href*="watch"], a.ytLockupMetadataViewModelTitle, a[href*="/watch?v="]');
+        const link = el.querySelector(
+          'a#video-title, a#video-title-link, a.yt-simple-endpoint[href*="watch"], a.ytLockupMetadataViewModelTitle, a[href*="/watch?v="]'
+        );
         if (!link) return;
-        
+
         const href = link.getAttribute('href') || '';
         const videoIdMatch = href.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
         if (!videoIdMatch) return;
-        
+
         const id = videoIdMatch[1];
         if (seen.has(id)) return;
         seen.add(id);
-        
+
         // Title
         const titleEl = el.querySelector('#video-title, .ytLockupMetadataViewModelTitle');
-        const title = titleEl ? (titleEl.textContent || titleEl.getAttribute('title') || '').trim() : '';
+        const title = titleEl
+          ? (titleEl.textContent || titleEl.getAttribute('title') || '').trim()
+          : '';
         if (!title) return;
-        
+
         // Channel name
-        const channelEl = el.querySelector('#channel-name a, .ytd-channel-name a, #text.ytd-channel-name, ytd-channel-name #text, .ytLockupMetadataViewModelChannel a, [href*="/@"]');
+        const channelEl = el.querySelector(
+          '#channel-name a, .ytd-channel-name a, #text.ytd-channel-name, ytd-channel-name #text, .ytLockupMetadataViewModelChannel a, [href*="/@"]'
+        );
         const channel = channelEl ? channelEl.textContent.trim() : '';
-        
+
         // Thumbnail
         const thumbEl = el.querySelector('img.yt-core-image, ytd-thumbnail img, img');
-        const thumbnail = thumbEl ? (thumbEl.getAttribute('src') || '') : '';
-        
+        const thumbnail = thumbEl ? thumbEl.getAttribute('src') || '' : '';
+
         // Music Video Detection
         const isMusic = isMusicVideo(el, title, channel);
-        
+
         videos.push({ id, title, channel, thumbnail, isMusic });
       } catch (e) {
         // Skip malformed elements
       }
     });
   }
-  
+
   console.log(`YtAlgoRebel: Scraped ${videos.length} videos from DOM`);
   return videos;
 }
@@ -215,7 +237,7 @@ function scrapeAllVideosFromDOM() {
  */
 function highlightVideosOnPage(scoredVideos) {
   // First remove any existing highlights
-  document.querySelectorAll('.yt-algo-rebel-highlight').forEach(el => {
+  document.querySelectorAll('.yt-algo-rebel-highlight').forEach((el) => {
     el.classList.remove('yt-algo-rebel-highlight');
     el.style.removeProperty('--rebel-glow-color');
     el.style.removeProperty('box-shadow');
@@ -223,10 +245,10 @@ function highlightVideosOnPage(scoredVideos) {
     el.style.removeProperty('border-radius');
     el.style.removeProperty('position');
   });
-  
+
   // Remove existing badges
-  document.querySelectorAll('.yt-algo-rebel-badge').forEach(el => el.remove());
-  
+  document.querySelectorAll('.yt-algo-rebel-badge').forEach((el) => el.remove());
+
   // Inject CSS if not already done
   if (!document.getElementById('yt-algo-rebel-styles')) {
     const style = document.createElement('style');
@@ -260,52 +282,53 @@ function highlightVideosOnPage(scoredVideos) {
     `;
     document.head.appendChild(style);
   }
-  
+
   // Apply highlights to scored videos
   scoredVideos.forEach((vid, index) => {
     // Find the video element by ID in any link href
     const links = document.querySelectorAll(`a[href*="${vid.id}"]`);
-    
-    links.forEach(link => {
-      const container = link.closest('ytd-rich-item-renderer')
-                     || link.closest('ytd-grid-video-renderer')
-                     || link.closest('ytd-video-renderer')
-                     || link.closest('ytd-compact-video-renderer');
-      
+
+    links.forEach((link) => {
+      const container =
+        link.closest('ytd-rich-item-renderer') ||
+        link.closest('ytd-grid-video-renderer') ||
+        link.closest('ytd-video-renderer') ||
+        link.closest('ytd-compact-video-renderer');
+
       if (!container) return;
-      
+
       // Only highlight top videos (matchPercent > 55)
       if (vid.matchPercent <= 55) return;
-      
+
       container.classList.add('yt-algo-rebel-highlight');
-      
+
       // Color based on match quality
       let glowColor, badgeBg;
       if (vid.matchPercent > 80) {
-        glowColor = 'rgba(34, 197, 94, 0.5)';  // green
+        glowColor = 'rgba(34, 197, 94, 0.5)'; // green
         badgeBg = 'rgba(22, 163, 74, 0.9)';
       } else if (vid.matchPercent > 65) {
-        glowColor = 'rgba(234, 179, 8, 0.4)';   // yellow
+        glowColor = 'rgba(234, 179, 8, 0.4)'; // yellow
         badgeBg = 'rgba(180, 140, 8, 0.9)';
       } else {
-        glowColor = 'rgba(96, 165, 250, 0.3)';  // blue
+        glowColor = 'rgba(96, 165, 250, 0.3)'; // blue
         badgeBg = 'rgba(59, 130, 246, 0.85)';
       }
-      
+
       container.style.boxShadow = `0 0 0 2px ${glowColor}, 0 0 16px ${glowColor}`;
       container.style.borderRadius = '12px';
-      
+
       // Add badge on the thumbnail
       const thumbWrap = container.querySelector('ytd-thumbnail');
       if (thumbWrap && !thumbWrap.querySelector('.yt-algo-rebel-badge')) {
         thumbWrap.style.position = 'relative';
-        
+
         const badge = document.createElement('div');
         badge.className = 'yt-algo-rebel-badge';
         badge.style.background = badgeBg;
         badge.style.animation = 'rebelPulse 3s ease-in-out infinite';
         badge.textContent = `🤖 #${index + 1} · ${vid.matchPercent}%`;
-        
+
         thumbWrap.appendChild(badge);
       }
     });
