@@ -3,7 +3,7 @@ import { buildKeywordMap, buildChannelMap, scoreVideoKeywords, scoreVideoAI } fr
 import { putItem, getItem } from '../utils/db.js';
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("YtAlgoRebel installed");
+  console.log('YtAlgoRebel installed');
 });
 
 // ────────────────────────────────────────────────
@@ -49,17 +49,20 @@ async function scrapeMyActivityDislikes() {
 
         // Give the SPA a moment to render its content
         setTimeout(() => {
-          chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            func: scrapeAllFromMyActivity
-          }).then((results) => {
-            const entries = (results && results[0] && results[0].result) || [];
-            console.log(`YtAlgoRebel: Scraped ${entries.length} total entries from My Activity`);
-            done(entries);
-          }).catch((err) => {
-            console.error('YtAlgoRebel: Failed to execute scrape script', err);
-            done([]);
-          });
+          chrome.scripting
+            .executeScript({
+              target: { tabId: tabId },
+              func: scrapeAllFromMyActivity,
+            })
+            .then((results) => {
+              const entries = (results && results[0] && results[0].result) || [];
+              console.log(`YtAlgoRebel: Scraped ${entries.length} total entries from My Activity`);
+              done(entries);
+            })
+            .catch((err) => {
+              console.error('YtAlgoRebel: Failed to execute scrape script', err);
+              done([]);
+            });
         }, 3000); // 3s delay for SPA render
       }
 
@@ -96,21 +99,23 @@ async function scrapeAllFromMyActivity() {
 
     for (let i = 0; i < scrollAttempts; i++) {
       window.scrollTo(0, document.body.scrollHeight);
-      await new Promise(r => setTimeout(r, delayMs));
+      await new Promise((r) => setTimeout(r, delayMs));
       const currentCount = document.querySelectorAll('.QTGV3c, [jsname="r4nke"]').length;
-      console.log(`YtAlgoRebel: Scrolling attempt ${i+1}/${scrollAttempts}, found ${currentCount} containers`);
+      console.log(
+        `YtAlgoRebel: Scrolling attempt ${i + 1}/${scrollAttempts}, found ${currentCount} containers`
+      );
     }
 
     // Find all activity item containers
     const actionDivs = document.querySelectorAll('.QTGV3c, [jsname="r4nke"]');
-    
-    actionDivs.forEach(div => {
+
+    actionDivs.forEach((div) => {
       const link = div.querySelector('a.l8sGWb, a[href*="youtube.com/watch"]');
       if (!link) return;
 
       // Extract video title
       const titleSpan = link.querySelector('.hFYxqd');
-      const title = titleSpan 
+      const title = titleSpan
         ? titleSpan.textContent.trim()
         : (link.getAttribute('aria-label') || link.textContent || '').trim();
       if (!title || title.length < 3 || seenTitles.has(title)) return;
@@ -120,7 +125,9 @@ async function scrapeAllFromMyActivity() {
       let channel = '';
       const parentEntry = div.closest('.gWevEe') || div.parentElement;
       if (parentEntry) {
-        const channelLink = parentEntry.querySelector('.SiEggd a[href*="youtube.com/channel"], .SiEggd a[href*="youtube.com/@"]');
+        const channelLink = parentEntry.querySelector(
+          '.SiEggd a[href*="youtube.com/channel"], .SiEggd a[href*="youtube.com/@"]'
+        );
         if (channelLink) channel = channelLink.textContent.trim();
       }
 
@@ -137,17 +144,19 @@ async function scrapeAllFromMyActivity() {
 /**
  * Read scoring weights from chrome.storage.local.
  */
-function getWeights() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(['historyWeight', 'likedBonus', 'wlWeight', 'channelWeight'], (result) => {
-      resolve({
-        historyWeight: result.historyWeight !== undefined ? result.historyWeight : 0.5,
-        likedBonus: result.likedBonus !== undefined ? result.likedBonus : 0.5,
-        wlWeight: result.wlWeight !== undefined ? result.wlWeight : 0.5,
-        channelWeight: result.channelWeight !== undefined ? result.channelWeight : 0.5
-      });
-    });
-  });
+async function getWeights() {
+  const result = await chrome.storage.local.get([
+    'historyWeight',
+    'likedBonus',
+    'wlWeight',
+    'channelWeight',
+  ]);
+  return {
+    historyWeight: result.historyWeight !== undefined ? result.historyWeight : 0.5,
+    likedBonus: result.likedBonus !== undefined ? result.likedBonus : 0.5,
+    wlWeight: result.wlWeight !== undefined ? result.wlWeight : 0.5,
+    channelWeight: result.channelWeight !== undefined ? result.channelWeight : 0.5,
+  };
 }
 
 /**
@@ -162,7 +171,9 @@ async function executeScrapeInTab(customPlaylists, syncLimit) {
       let isTempTab = false;
 
       // Filter tabs that are fully loaded and have http/https protocol
-      const ytTabs = tabs.filter(t => t.url && t.url.startsWith('http') && t.status === 'complete' && !t.discarded);
+      const ytTabs = tabs.filter(
+        (t) => t.url && t.url.startsWith('http') && t.status === 'complete' && !t.discarded
+      );
 
       if (ytTabs.length > 0) {
         // Use the first available YouTube tab
@@ -170,7 +181,7 @@ async function executeScrapeInTab(customPlaylists, syncLimit) {
         console.log(`YtAlgoRebel: Reusing existing YouTube tab ${tabId} for scraping`);
       } else {
         // Create a temporary YouTube tab
-        console.log("YtAlgoRebel: No YouTube tab found. Creating temporary tab for scraping...");
+        console.log('YtAlgoRebel: No YouTube tab found. Creating temporary tab for scraping...');
         try {
           const tempTab = await new Promise((resolveTab) => {
             chrome.tabs.create({ url: 'https://www.youtube.com', active: false }, resolveTab);
@@ -202,7 +213,7 @@ async function executeScrapeInTab(customPlaylists, syncLimit) {
             function onTabRemoved(removedTabId) {
               if (removedTabId === tabId) {
                 cleanup();
-                rejectLoad(new Error("Temporary tab was closed before it finished loading."));
+                rejectLoad(new Error('Temporary tab was closed before it finished loading.'));
               }
             }
 
@@ -215,34 +226,45 @@ async function executeScrapeInTab(customPlaylists, syncLimit) {
               if (tabId) {
                 chrome.tabs.remove(tabId).catch(() => {});
               }
-              rejectLoad(new Error("Timeout waiting for temporary tab to load."));
+              rejectLoad(new Error('Timeout waiting for temporary tab to load.'));
             }, 15000);
           });
         } catch (err) {
-          reject(new Error("Failed to create temporary YouTube tab for scraping: " + err.message));
+          reject(new Error('Failed to create temporary YouTube tab for scraping: ' + err.message));
           return;
         }
       }
 
       // Send message to the tab to execute scrapeTasteData
-      chrome.tabs.sendMessage(tabId, { type: 'RUN_TASTE_SCRAPE', customPlaylists, syncLimit }, (response) => {
-        const lastError = chrome.runtime.lastError;
-        
-        // Clean up temporary tab if we created one
-        if (isTempTab && tabId) {
-          chrome.tabs.remove(tabId).catch(() => {});
-        }
+      chrome.tabs.sendMessage(
+        tabId,
+        { type: 'RUN_TASTE_SCRAPE', customPlaylists, syncLimit },
+        (response) => {
+          const lastError = chrome.runtime.lastError;
 
-        if (lastError) {
-          console.error("YtAlgoRebel: Error sending message to YouTube tab", lastError);
-          reject(new Error("Failed to communicate with YouTube page. Make sure you have an active YouTube page open or reload your current YouTube tab. Details: " + lastError.message));
-        } else if (response && response.success) {
-          console.log("YtAlgoRebel: Scraping completed successfully in tab context");
-          resolve(response.data);
-        } else {
-          reject(new Error(response?.error || 'Unknown error during scraping inside YouTube page'));
+          // Clean up temporary tab if we created one
+          if (isTempTab && tabId) {
+            chrome.tabs.remove(tabId).catch(() => {});
+          }
+
+          if (lastError) {
+            console.error('YtAlgoRebel: Error sending message to YouTube tab', lastError);
+            reject(
+              new Error(
+                'Failed to communicate with YouTube page. Make sure you have an active YouTube page open or reload your current YouTube tab. Details: ' +
+                  lastError.message
+              )
+            );
+          } else if (response && response.success) {
+            console.log('YtAlgoRebel: Scraping completed successfully in tab context');
+            resolve(response.data);
+          } else {
+            reject(
+              new Error(response?.error || 'Unknown error during scraping inside YouTube page')
+            );
+          }
         }
-      });
+      );
     });
   });
 }
@@ -252,9 +274,11 @@ async function executeScrapeInTab(customPlaylists, syncLimit) {
  * Always builds keyword maps (instant). Optionally builds AI embeddings.
  */
 async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallback) {
-  chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: 'Connecting to YouTube page for scraping...' }).catch(() => {});
-  
-  const customPlaylists = await new Promise(resolve => {
+  chrome.runtime
+    .sendMessage({ type: 'SYNC_STATUS_MSG', msg: 'Connecting to YouTube page for scraping...' })
+    .catch(() => {});
+
+  const customPlaylists = await new Promise((resolve) => {
     chrome.storage.local.get(['customPlaylists'], (res) => resolve(res.customPlaylists || []));
   });
 
@@ -262,23 +286,32 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
   try {
     scrapedData = await executeScrapeInTab(customPlaylists, syncLimit);
   } catch (err) {
-    console.error("YtAlgoRebel: Failed to scrape via tab context", err);
-    chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: `Scrape failed: ${err.message}` }).catch(() => {});
+    console.error('YtAlgoRebel: Failed to scrape via tab context', err);
+    chrome.runtime
+      .sendMessage({ type: 'SYNC_STATUS_MSG', msg: `Scrape failed: ${err.message}` })
+      .catch(() => {});
     return false;
   }
 
-  const { historyEntries, likesEntries, dislikesEntries: playlistDislikes, wlEntries, customPlaylistsData: scrapedCustomPlaylists } = scrapedData;
+  const {
+    historyEntries,
+    likesEntries,
+    dislikesEntries: playlistDislikes,
+    wlEntries,
+    customPlaylistsData: scrapedCustomPlaylists,
+  } = scrapedData;
 
   let existingProfile = null;
   try {
     existingProfile = await getItem('tasteMatrix', 'master');
   } catch (err) {
-    console.warn("YtAlgoRebel: Failed to load existing taste matrix", err);
+    console.warn('YtAlgoRebel: Failed to load existing taste matrix', err);
   }
-  
+
   const normalizeTitle = (str) => {
     if (!str) return '';
-    return str.toLowerCase()
+    return str
+      .toLowerCase()
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
@@ -290,63 +323,78 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
   };
 
   // Build set of known liked normalized titles (from LL playlist)
-  const likedNormalizedSet = new Set(likesEntries.map(e => normalizeTitle(e.title)));
-  
+  const likedNormalizedSet = new Set(likesEntries.map((e) => normalizeTitle(e.title)));
+
   // Get dislikes: start with playlist DL (if available)
   let dislikesEntries = [...playlistDislikes];
-  
+
   // If opted in, scrape My Activity page for more signal
   if (scanDislikes) {
-    chrome.runtime.sendMessage({ type: 'SYNC_STATUS_MSG', msg: 'Scanning Google My Activity for dislikes (recent videos)...' }).catch(() => {});
-    console.log("YtAlgoRebel: Extracting dislikes only from videos watched in the safe zone (recent history).");
+    chrome.runtime
+      .sendMessage({
+        type: 'SYNC_STATUS_MSG',
+        msg: 'Scanning Google My Activity for dislikes (recent videos)...',
+      })
+      .catch(() => {});
+    console.log(
+      'YtAlgoRebel: Extracting dislikes only from videos watched in the safe zone (recent history).'
+    );
     const myActivityEntries = await scrapeMyActivityDislikes();
-    
-    const existingDislikesNormalized = new Set(dislikesEntries.map(e => normalizeTitle(e.title)));
-    
+
+    const existingDislikesNormalized = new Set(dislikesEntries.map((e) => normalizeTitle(e.title)));
+
     // Safety & Safe Zone Alignment Logic
     let safeZoneLimitIndex = -1;
-    
+
     if (likesEntries.length < 100) {
       safeZoneLimitIndex = myActivityEntries.length - 1;
-      console.log("YtAlgoRebel: Liked playlist is complete (less than 100 items). Entire My Activity is within the safe zone.");
+      console.log(
+        'YtAlgoRebel: Liked playlist is complete (less than 100 items). Entire My Activity is within the safe zone.'
+      );
     } else {
       for (let i = likesEntries.length - 1; i >= 0; i--) {
         const likedNorm = normalizeTitle(likesEntries[i].title);
-        const idx = myActivityEntries.findIndex(e => normalizeTitle(e.title) === likedNorm);
+        const idx = myActivityEntries.findIndex((e) => normalizeTitle(e.title) === likedNorm);
         if (idx !== -1) {
           safeZoneLimitIndex = idx;
-          console.log(`YtAlgoRebel: Safe zone anchor found at My Activity index ${idx} ("${myActivityEntries[idx].title}") matching liked video index ${i} ("${likesEntries[i].title}")`);
+          console.log(
+            `YtAlgoRebel: Safe zone anchor found at My Activity index ${idx} ("${myActivityEntries[idx].title}") matching liked video index ${i} ("${likesEntries[i].title}")`
+          );
           break;
         }
       }
     }
-    
+
     if (safeZoneLimitIndex !== -1) {
       let addedCount = 0;
       for (let k = 0; k <= safeZoneLimitIndex; k++) {
         const entry = myActivityEntries[k];
         const norm = normalizeTitle(entry.title);
-        
+
         if (!likedNormalizedSet.has(norm) && !existingDislikesNormalized.has(norm)) {
           dislikesEntries.push(entry);
           existingDislikesNormalized.add(norm);
           addedCount++;
         }
       }
-      console.log(`YtAlgoRebel: Evaluated ${safeZoneLimitIndex + 1} My Activity entries in safe zone. Added ${addedCount} new dislikes.`);
+      console.log(
+        `YtAlgoRebel: Evaluated ${safeZoneLimitIndex + 1} My Activity entries in safe zone. Added ${addedCount} new dislikes.`
+      );
     } else {
-      console.warn("YtAlgoRebel: No overlap found between Liked Playlist and My Activity, and liked list is incomplete. Safe zone is empty. Skipping My Activity entries to prevent false positives.");
+      console.warn(
+        'YtAlgoRebel: No overlap found between Liked Playlist and My Activity, and liked list is incomplete. Safe zone is empty. Skipping My Activity entries to prevent false positives.'
+      );
     }
   }
-  
+
   if (historyEntries.length === 0 && likesEntries.length === 0) return false;
-  
+
   // ── Keyword and Channel maps (always built, instant) ──
   const historyKeywordMap = buildKeywordMap(historyEntries);
   const likesKeywordMap = buildKeywordMap(likesEntries);
   const historyChannelMap = buildChannelMap(historyEntries);
   const likesChannelMap = buildChannelMap(likesEntries);
-  
+
   let dislikesKeywordMap;
   let dislikesChannelMap;
   if (!scanDislikes && existingProfile) {
@@ -355,18 +403,20 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
     if (!dislikesChannelMap || Object.keys(dislikesChannelMap).length === 0) {
       dislikesChannelMap = buildChannelMap(dislikesEntries);
     }
-    console.log(`YtAlgoRebel: Preserving ${Object.keys(dislikesKeywordMap).length} dislikes from existing profile`);
+    console.log(
+      `YtAlgoRebel: Preserving ${Object.keys(dislikesKeywordMap).length} dislikes from existing profile`
+    );
   } else {
     dislikesKeywordMap = buildKeywordMap(dislikesEntries);
     dislikesChannelMap = buildChannelMap(dislikesEntries);
   }
-  
+
   const wlKeywordMap = buildKeywordMap(wlEntries);
   const wlChannelMap = buildChannelMap(wlEntries);
-  
+
   // Save raw history titles for "already watched" filtering
-  const historyTitles = historyEntries.map(e => e.title.toLowerCase().trim());
-  
+  const historyTitles = historyEntries.map((e) => e.title.toLowerCase().trim());
+
   const profile = {
     id: 'master',
     historyKeywordMap,
@@ -380,16 +430,20 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
     historyTitles,
     historyEmbeddings: [],
     likesEmbeddings: [],
-    dislikesEmbeddings: (!scanDislikes && existingProfile) ? (existingProfile.dislikesEmbeddings || []) : [],
+    dislikesEmbeddings:
+      !scanDislikes && existingProfile ? existingProfile.dislikesEmbeddings || [] : [],
     wlEmbeddings: [],
     historyCount: historyEntries.length,
     likesCount: likesEntries.length,
-    dislikesCount: (!scanDislikes && existingProfile) ? (existingProfile.dislikesCount || 0) : dislikesEntries.length,
+    dislikesCount:
+      !scanDislikes && existingProfile
+        ? existingProfile.dislikesCount || 0
+        : dislikesEntries.length,
     wlCount: wlEntries.length,
     customPlaylistsData: [],
-    lastSync: Date.now()
+    lastSync: Date.now(),
   };
-  
+
   if (scrapedCustomPlaylists) {
     for (const pl of scrapedCustomPlaylists) {
       profile.customPlaylistsData.push({
@@ -397,58 +451,67 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
         count: pl.entries.length,
         keywordMap: buildKeywordMap(pl.entries),
         embeddings: [],
-        entries: pl.entries
+        entries: pl.entries,
       });
     }
   }
-  
+
   // ── AI embeddings (opt-in) ──
   if (useAI) {
-    let allEntriesLength = historyEntries.length + likesEntries.length + dislikesEntries.length + wlEntries.length;
+    let allEntriesLength =
+      historyEntries.length + likesEntries.length + dislikesEntries.length + wlEntries.length;
     if (profile.customPlaylistsData) {
-      profile.customPlaylistsData.forEach(pl => allEntriesLength += pl.entries.length);
+      profile.customPlaylistsData.forEach((pl) => (allEntriesLength += pl.entries.length));
     }
-    
+
     let processed = 0;
     const total = allEntriesLength;
-    
+
     const onDownloadProgress = (data) => {
       if (data.status === 'progress' || data.status === 'downloading') {
-        chrome.runtime.sendMessage({
-          type: 'MODEL_DOWNLOAD_PROGRESS',
-          progress: data.progress || 0,
-          loaded: data.loaded || 0,
-          total: data.total || 0
-        }).catch(() => {});
+        chrome.runtime
+          .sendMessage({
+            type: 'MODEL_DOWNLOAD_PROGRESS',
+            progress: data.progress || 0,
+            loaded: data.loaded || 0,
+            total: data.total || 0,
+          })
+          .catch(() => {});
       }
     };
-    
+
     // History embeddings
     for (const entry of historyEntries) {
       try {
         const emb = await generateEmbeddings(entry.title, onDownloadProgress);
         if (emb) profile.historyEmbeddings.push(emb);
-      } catch (e) { console.warn("Failed embedding for", entry.title); }
+      } catch (e) {
+        console.warn('Failed embedding for', entry.title);
+      }
       processed++;
       if (progressCallback) progressCallback(processed, total, 'ai');
     }
-    
+
     // Likes embeddings
     for (const entry of likesEntries) {
       try {
         const emb = await generateEmbeddings(entry.title, onDownloadProgress);
         if (emb) profile.likesEmbeddings.push(emb);
-      } catch (e) { console.warn("Failed embedding for", entry.title); }
+      } catch (e) {
+        console.warn('Failed embedding for', entry.title);
+      }
       processed++;
       if (progressCallback) progressCallback(processed, total, 'ai');
     }
-    
+
     // Dislikes embeddings
     for (const entry of dislikesEntries) {
       try {
         const emb = await generateEmbeddings(entry.title, onDownloadProgress);
         if (emb) profile.dislikesEmbeddings.push(emb);
-      } catch (e) { console.warn("Failed embedding for", entry.title); }
+      } catch (e) {
+        console.warn('Failed embedding for', entry.title);
+      }
       processed++;
       if (progressCallback) progressCallback(processed, total, 'ai');
     }
@@ -458,7 +521,9 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
       try {
         const emb = await generateEmbeddings(entry.title, onDownloadProgress);
         if (emb) profile.wlEmbeddings.push(emb);
-      } catch (e) { console.warn("Failed embedding for", entry.title); }
+      } catch (e) {
+        console.warn('Failed embedding for', entry.title);
+      }
       processed++;
       if (progressCallback) progressCallback(processed, total, 'ai');
     }
@@ -470,23 +535,26 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
           try {
             const emb = await generateEmbeddings(entry.title, onDownloadProgress);
             if (emb) pl.embeddings.push(emb);
-          } catch (e) { console.warn("Failed embedding", entry.title); }
+          } catch (e) {
+            console.warn('Failed embedding', entry.title);
+          }
           processed++;
           if (progressCallback) progressCallback(processed, total, 'ai');
         }
       }
     }
   } else {
-    let total = historyEntries.length + likesEntries.length + dislikesEntries.length + wlEntries.length;
+    let total =
+      historyEntries.length + likesEntries.length + dislikesEntries.length + wlEntries.length;
     if (profile.customPlaylistsData) {
-      profile.customPlaylistsData.forEach(pl => total += pl.entries.length);
+      profile.customPlaylistsData.forEach((pl) => (total += pl.entries.length));
     }
     if (progressCallback) progressCallback(total, total, 'scrape');
   }
-  
+
   // Cleanup temp entries array
   if (profile.customPlaylistsData) {
-    profile.customPlaylistsData.forEach(pl => delete pl.entries);
+    profile.customPlaylistsData.forEach((pl) => delete pl.entries);
   }
 
   await putItem('tasteMatrix', profile);
@@ -495,10 +563,10 @@ async function buildTasteProfile(useAI, scanDislikes, syncLimit, progressCallbac
 
 // Keep-alive port listener to prevent Service Worker shutdown during sync
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name === "keepalive") {
-    console.log("YtAlgoRebel: Keep-alive port connected");
+  if (port.name === 'keepalive') {
+    console.log('YtAlgoRebel: Keep-alive port connected');
     port.onDisconnect.addListener(() => {
-      console.log("YtAlgoRebel: Keep-alive port disconnected");
+      console.log('YtAlgoRebel: Keep-alive port disconnected');
     });
   }
 });
@@ -510,35 +578,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const scanDislikes = message.scanDislikes || false;
     const syncLimit = message.syncLimit || 500;
     buildTasteProfile(useAI, scanDislikes, syncLimit, (current, total, phase) => {
-        chrome.runtime.sendMessage({ type: 'SYNC_PROGRESS', current, total, phase }).catch(() => {});
-    }).then(success => {
-        chrome.runtime.sendMessage({ type: 'SYNC_COMPLETE', success }).catch(() => {});
+      chrome.runtime.sendMessage({ type: 'SYNC_PROGRESS', current, total, phase }).catch(() => {});
+    }).then((success) => {
+      chrome.runtime.sendMessage({ type: 'SYNC_COMPLETE', success }).catch(() => {});
     });
   }
-  
+
   // ── Find Top Videos from the current page ──
   if (message.type === 'FIND_TOP_VIDEOS') {
     const { videos, useAI } = message;
-    findTopVideos(videos, useAI).then(res => {
-      sendResponse({ success: true, videos: res.videos, aiFallback: res.aiFallback });
-    }).catch(err => {
-      console.error("YtAlgoRebel: Error finding top videos", err);
-      sendResponse({ success: false, videos: [], error: err.message });
-    });
+    findTopVideos(videos, useAI)
+      .then((res) => {
+        sendResponse({ success: true, videos: res.videos, aiFallback: res.aiFallback });
+      })
+      .catch((err) => {
+        console.error('YtAlgoRebel: Error finding top videos', err);
+        sendResponse({ success: false, videos: [], error: err.message });
+      });
     return true;
   }
-  
+
   // ── Forward scored videos to content script for highlighting ──
   if (message.type === 'HIGHLIGHT_ON_PAGE') {
     const { videos, tabId } = message;
     if (tabId) {
-      chrome.tabs.sendMessage(tabId, {
-        type: 'HIGHLIGHT_VIDEOS',
-        videos: videos
-      }).catch(() => {});
+      chrome.tabs
+        .sendMessage(tabId, {
+          type: 'HIGHLIGHT_VIDEOS',
+          videos: videos,
+        })
+        .catch(() => {});
     }
   }
-  
+
   // ── Reserved for inject.js API interception ──
   if (message.type === 'YOUTUBE_API_RESPONSE') {
     // Reserved for future use
@@ -551,36 +623,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
  */
 async function findTopVideos(pageVideos, useAI = false) {
   const profile = await getItem('tasteMatrix', 'master');
-  
+
   if (!profile) {
-    console.warn("YtAlgoRebel: No taste profile found. Please sync first.");
+    console.warn('YtAlgoRebel: No taste profile found. Please sync first.');
     return { videos: [], aiFallback: false };
   }
-  
+
   const weights = await getWeights();
   const { historyWeight, likedBonus, wlWeight, channelWeight } = weights;
-  
-  const { filterMusicVideos, customPlaylists } = await new Promise(resolve => {
-    chrome.storage.local.get(['filterMusicVideos', 'customPlaylists'], (res) => resolve({
-      filterMusicVideos: res.filterMusicVideos || false,
-      customPlaylists: res.customPlaylists || []
-    }));
+
+  const { filterMusicVideos, customPlaylists } = await new Promise((resolve) => {
+    chrome.storage.local.get(['filterMusicVideos', 'customPlaylists'], (res) =>
+      resolve({
+        filterMusicVideos: res.filterMusicVideos || false,
+        customPlaylists: res.customPlaylists || [],
+      })
+    );
   });
-  
+
   const {
-    historyKeywordMap, likesKeywordMap, dislikesKeywordMap, wlKeywordMap,
-    historyChannelMap, likesChannelMap, dislikesChannelMap, wlChannelMap,
+    historyKeywordMap,
+    likesKeywordMap,
+    dislikesKeywordMap,
+    wlKeywordMap,
+    historyChannelMap,
+    likesChannelMap,
+    dislikesChannelMap,
+    wlChannelMap,
     historyTitles,
-    historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings
+    historyEmbeddings,
+    likesEmbeddings,
+    dislikesEmbeddings,
+    wlEmbeddings,
   } = profile;
-  
+
   // Filter out already watched videos and music videos if setting enabled
-  const unwatchedVideos = pageVideos.filter(v => {
+  const unwatchedVideos = pageVideos.filter((v) => {
     if (filterMusicVideos && v.isMusic) return false;
     const normalizedTitle = v.title.toLowerCase().trim();
     return !historyTitles.includes(normalizedTitle);
   });
-  
+
   const scoredVideos = [];
   let aiFallback = false;
 
@@ -593,47 +676,72 @@ async function findTopVideos(pageVideos, useAI = false) {
   const runAI = useAI && hasAI;
   let idx = 0;
   const total = unwatchedVideos.length;
-  
+
   for (const vid of unwatchedVideos) {
     try {
       let score;
-      
+
       if (runAI) {
         const emb = await generateEmbeddings(vid.title, null);
         score = scoreVideoAI(
-          emb, vid.title, vid.channel || '',
-          historyEmbeddings, likesEmbeddings, dislikesEmbeddings, wlEmbeddings || [],
-          historyWeight, likedBonus, wlWeight,
-          profile.customPlaylistsData || [], customPlaylists,
-          historyChannelMap || {}, likesChannelMap || {}, dislikesChannelMap || {}, wlChannelMap || {}, channelWeight
+          emb,
+          vid.title,
+          vid.channel || '',
+          historyEmbeddings,
+          likesEmbeddings,
+          dislikesEmbeddings,
+          wlEmbeddings || [],
+          historyWeight,
+          likedBonus,
+          wlWeight,
+          profile.customPlaylistsData || [],
+          customPlaylists,
+          historyChannelMap || {},
+          likesChannelMap || {},
+          dislikesChannelMap || {},
+          wlChannelMap || {},
+          channelWeight
         );
       } else {
         score = scoreVideoKeywords(
-          vid.title, vid.channel || '',
-          historyKeywordMap || {}, likesKeywordMap || {}, dislikesKeywordMap || {}, wlKeywordMap || {},
-          historyWeight, likedBonus, wlWeight,
-          profile.customPlaylistsData || [], customPlaylists,
-          historyChannelMap || {}, likesChannelMap || {}, dislikesChannelMap || {}, wlChannelMap || {}, channelWeight
+          vid.title,
+          vid.channel || '',
+          historyKeywordMap || {},
+          likesKeywordMap || {},
+          dislikesKeywordMap || {},
+          wlKeywordMap || {},
+          historyWeight,
+          likedBonus,
+          wlWeight,
+          profile.customPlaylistsData || [],
+          customPlaylists,
+          historyChannelMap || {},
+          likesChannelMap || {},
+          dislikesChannelMap || {},
+          wlChannelMap || {},
+          channelWeight
         );
       }
-      
+
       scoredVideos.push({
         id: vid.id,
         title: vid.title,
         channel: vid.channel || '',
         thumbnail: vid.thumbnail || '',
         score: score,
-        matchPercent: Math.round(((score + 1) / 2) * 100)
+        matchPercent: Math.round(((score + 1) / 2) * 100),
       });
     } catch (e) {
-      console.error("Error scoring video", vid.title, e);
+      console.error('Error scoring video', vid.title, e);
     }
 
     idx++;
     // Report scoring progress to popup
-    chrome.runtime.sendMessage({ type: 'SCORE_PROGRESS', current: idx, total: total }).catch(() => {});
+    chrome.runtime
+      .sendMessage({ type: 'SCORE_PROGRESS', current: idx, total: total })
+      .catch(() => {});
   }
-  
+
   // Sort descending, return top 10
   scoredVideos.sort((a, b) => b.score - a.score);
   return { videos: scoredVideos.slice(0, 10), aiFallback };

@@ -1,12 +1,24 @@
 import { getItem } from '../utils/db.js';
 
+const escapeHtml = (str) => {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[&<>'"]/g, (tag) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[tag] || tag));
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   let keepAlivePort = null;
   // ── i18n Initialization ──
-  document.querySelectorAll('[data-i18n]').forEach(elem => {
+  document.querySelectorAll('[data-i18n]').forEach((elem) => {
     const message = chrome.i18n.getMessage(elem.dataset.i18n);
     if (message) {
       if (elem.querySelector('*')) {
+        /* eslint-disable-next-line no-unsanitized/property */
         elem.innerHTML = message;
       } else {
         elem.textContent = message;
@@ -15,10 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
       elem.textContent = elem.dataset.i18n;
     }
   });
-  document.querySelectorAll('[data-i18n-title]').forEach(elem => {
+  document.querySelectorAll('[data-i18n-title]').forEach((elem) => {
     elem.title = chrome.i18n.getMessage(elem.dataset.i18nTitle) || elem.title;
   });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(elem => {
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((elem) => {
     elem.placeholder = chrome.i18n.getMessage(elem.dataset.i18nPlaceholder) || elem.placeholder;
   });
   // ── Tab Switching ──
@@ -54,17 +66,19 @@ document.addEventListener('DOMContentLoaded', () => {
   chrome.storage.local.get(['useAI'], (result) => {
     aiToggle.checked = result.useAI || false;
     updateModeLabel();
-    getItem('tasteMatrix', 'master').then(profile => checkAiWarning(profile));
+    getItem('tasteMatrix', 'master').then((profile) => checkAiWarning(profile));
   });
 
   aiToggle.addEventListener('change', () => {
     chrome.storage.local.set({ useAI: aiToggle.checked });
     updateModeLabel();
-    getItem('tasteMatrix', 'master').then(profile => checkAiWarning(profile));
+    getItem('tasteMatrix', 'master').then((profile) => checkAiWarning(profile));
   });
 
   function updateModeLabel() {
-    modeLabel.textContent = aiToggle.checked ? chrome.i18n.getMessage('aiMode') : chrome.i18n.getMessage('keywordMode');
+    modeLabel.textContent = aiToggle.checked
+      ? chrome.i18n.getMessage('aiMode')
+      : chrome.i18n.getMessage('keywordMode');
   }
 
   findBtn.addEventListener('click', async () => {
@@ -72,8 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
     findBtn.disabled = true;
     findBtn.classList.add('loading');
     findText.textContent = chrome.i18n.getMessage('scanningPage');
-    
+
     // Show skeleton loading in video list
+    /* eslint-disable-next-line no-unsanitized/property */
     videoList.innerHTML = generateSkeletons(4);
     resultsHeader.classList.remove('hidden');
     resultsBadge.textContent = chrome.i18n.getMessage('scanningBadge');
@@ -84,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const scoreProgressBar = document.getElementById('score-progress-bar');
     const scoreProgressText = document.getElementById('score-progress');
     const scoreTotalText = document.getElementById('score-total');
-    
+
     if (scoreStatus) {
       scoreStatus.classList.remove('hidden');
       scoreProgressBar.style.width = '0%';
@@ -97,9 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
       let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab || !tab.url || !tab.url.includes('youtube.com')) {
         const ytTabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
-        tab = ytTabs.find(t => t.active) || ytTabs[0];
+        tab = ytTabs.find((t) => t.active) || ytTabs[0];
       }
-      
+
       if (!tab || !tab.url || !tab.url.includes('youtube.com')) {
         showError('Navigate to YouTube first, then click Find Videos.');
         resetFindBtn();
@@ -117,34 +132,44 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      findText.textContent = chrome.i18n.getMessage('scoringNVideos', [pageVideos.length.toString()]);
+      findText.textContent = chrome.i18n.getMessage('scoringNVideos', [
+        pageVideos.length.toString(),
+      ]);
 
       // 2. Send to background for scoring
       const useAI = aiToggle.checked;
       const result = await chrome.runtime.sendMessage({
         type: 'FIND_TOP_VIDEOS',
         videos: pageVideos,
-        useAI: useAI
+        useAI: useAI,
       });
 
       if (result && result.success && result.videos.length > 0) {
         renderResults(result.videos);
-        resultsBadge.textContent = chrome.i18n.getMessage('topNVideos', [result.videos.length.toString()]);
-        
+        resultsBadge.textContent = chrome.i18n.getMessage('topNVideos', [
+          result.videos.length.toString(),
+        ]);
+
         // 3. Also highlight them on the page
         chrome.runtime.sendMessage({
           type: 'HIGHLIGHT_ON_PAGE',
           videos: result.videos,
-          tabId: tab.id
+          tabId: tab.id,
         });
       } else if (result && result.videos && result.videos.length === 0) {
-        showError('No matching unwatched videos found. You may have seen them all! Try a different page.');
+        showError(
+          'No matching unwatched videos found. You may have seen them all! Try a different page.'
+        );
       } else {
-        showError(result?.error || 'Scoring failed. Make sure you\'ve synced your Taste Profile in Settings.');
+        showError(
+          result?.error || "Scoring failed. Make sure you've synced your Taste Profile in Settings."
+        );
       }
     } catch (err) {
       console.error('Find Videos error:', err);
-      showError('Could not connect to YouTube tab. Make sure you\'re on a YouTube page and refresh if needed.');
+      showError(
+        "Could not connect to YouTube tab. Make sure you're on a YouTube page and refresh if needed."
+      );
     }
 
     resetFindBtn();
@@ -161,10 +186,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showError(msg) {
     resultsHeader.classList.add('hidden');
+    /* eslint-disable-next-line no-unsanitized/property */
     videoList.innerHTML = `
       <div class="error-state">
         <div class="error-icon">⚠️</div>
-        <p>${msg}</p>
+        <p>${escapeHtml(msg)}</p>
       </div>`;
   }
 
@@ -198,13 +224,15 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (video.matchPercent > 60) scoreClass = 'score-mid';
 
       // Thumbnail fallback
-      const thumbSrc = video.thumbnail && video.thumbnail.startsWith('http')
-        ? video.thumbnail
-        : `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
+      const thumbSrc =
+        video.thumbnail && video.thumbnail.startsWith('http')
+          ? video.thumbnail
+          : `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
 
+      /* eslint-disable-next-line no-unsanitized/property */
       el.innerHTML = `
         <div class="video-rank">#${index + 1}</div>
-        <img class="video-thumb" src="${thumbSrc}" alt="" loading="lazy" />
+        <img class="video-thumb" src="${escapeHtml(thumbSrc)}" alt="" loading="lazy" />
         <div class="video-info">
           <div class="video-title" title="${escapeHtml(video.title)}">${escapeHtml(video.title)}</div>
           <div class="video-channel">${escapeHtml(video.channel)}</div>
@@ -238,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const scanDislikesToggle = document.getElementById('scan-dislikes-toggle');
   const syncAIToggle = document.getElementById('sync-ai-toggle');
   const filterMusicToggle = document.getElementById('filter-music-toggle');
-  
+
   // ── Settings: Custom Playlists ──
   const playlistsContainer = document.getElementById('custom-playlists-container');
   const addPlaylistBtn = document.getElementById('add-playlist-btn');
@@ -248,16 +276,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!playlistsContainer) return;
     playlistsContainer.innerHTML = '';
     if (customPlaylists.length === 0) {
-      playlistsContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center;">No custom playlists added yet.</p>';
+      playlistsContainer.innerHTML =
+        '<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center;">No custom playlists added yet.</p>';
       return;
     }
 
     customPlaylists.forEach((playlist, index) => {
-      const weightString = playlist.weight >= 0 ? '+' + parseFloat(playlist.weight).toFixed(2) : parseFloat(playlist.weight).toFixed(2);
-      
+      const weightString =
+        playlist.weight >= 0
+          ? '+' + parseFloat(playlist.weight).toFixed(2)
+          : parseFloat(playlist.weight).toFixed(2);
+
       const row = document.createElement('div');
       row.className = 'custom-playlist-row';
       row.dataset.index = index;
+      /* eslint-disable-next-line no-unsanitized/property */
       row.innerHTML = `
         <div class="playlist-row-header">
           <input type="text" class="glass-input playlist-url" placeholder="Playlist Link or ID" value="${escapeHtml(playlist.url || '')}" />
@@ -329,33 +362,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const scanDislikes = scanDislikesToggle ? scanDislikesToggle.checked : false;
     const syncAI = syncAIToggle ? syncAIToggle.checked : false;
     const filterMusic = filterMusicToggle ? filterMusicToggle.checked : false;
-    const syncLimit = syncLimitSlider ? (parseInt(syncLimitSlider.value) || 500) : 500;
-    
-    // Clean up empty custom playlists on save (do not re-render immediately to prevent cursor jumping)
-    const cleanedPlaylists = customPlaylists.filter(pl => pl.url && pl.url.trim() !== '');
+    const syncLimit = syncLimitSlider ? parseInt(syncLimitSlider.value) || 500 : 500;
 
-    chrome.storage.local.set({
-      historyWeight: parseFloat(historySlider.value),
-      wlWeight: wlSlider ? parseFloat(wlSlider.value) : 0.5,
-      channelWeight: channelSlider ? parseFloat(channelSlider.value) : 0.5,
-      likedBonus: parseFloat(likedSlider.value),
-      aiBackend: selectedBackend,
-      useOllama: selectedBackend === 'ollama',
-      useOpenAI: selectedBackend === 'openai',
-      ollamaUrl: document.getElementById('ollama-url')?.value || '',
-      ollamaModel: document.getElementById('ollama-model')?.value || '',
-      openAIKey: document.getElementById('openai-key')?.value || '',
-      openAIUrl: document.getElementById('openai-url')?.value || '',
-      openAIModel: document.getElementById('openai-model')?.value || '',
-      scanDislikes: scanDislikes,
-      syncAI: syncAI,
-      filterMusicVideos: filterMusic,
-      customPlaylists: cleanedPlaylists,
-      syncLimit: syncLimit
-    }, () => {
-      // Update stats warning immediately
-      getItem('tasteMatrix', 'master').then(profile => checkAiWarning(profile));
-    });
+    // Clean up empty custom playlists on save (do not re-render immediately to prevent cursor jumping)
+    const cleanedPlaylists = customPlaylists.filter((pl) => pl.url && pl.url.trim() !== '');
+
+    chrome.storage.local.set(
+      {
+        historyWeight: parseFloat(historySlider.value),
+        wlWeight: wlSlider ? parseFloat(wlSlider.value) : 0.5,
+        channelWeight: channelSlider ? parseFloat(channelSlider.value) : 0.5,
+        likedBonus: parseFloat(likedSlider.value),
+        aiBackend: selectedBackend,
+        useOllama: selectedBackend === 'ollama',
+        useOpenAI: selectedBackend === 'openai',
+        ollamaUrl: document.getElementById('ollama-url')?.value || '',
+        ollamaModel: document.getElementById('ollama-model')?.value || '',
+        openAIKey: document.getElementById('openai-key')?.value || '',
+        openAIUrl: document.getElementById('openai-url')?.value || '',
+        openAIModel: document.getElementById('openai-model')?.value || '',
+        scanDislikes: scanDislikes,
+        syncAI: syncAI,
+        filterMusicVideos: filterMusic,
+        customPlaylists: cleanedPlaylists,
+        syncLimit: syncLimit,
+      },
+      () => {
+        // Update stats warning immediately
+        getItem('tasteMatrix', 'master').then((profile) => checkAiWarning(profile));
+      }
+    );
   }
 
   // Debounced save for text inputs — fires 400ms after last keystroke,
@@ -379,66 +415,83 @@ document.addEventListener('DOMContentLoaded', () => {
   const openaiSettings = document.getElementById('openai-settings');
 
   // Load ALL saved settings in a single call to avoid race conditions
-  chrome.storage.local.get([
-    'historyWeight', 'wlWeight', 'channelWeight', 'likedBonus', 'scanDislikes', 'syncAI',
-    'filterMusicVideos', 'customPlaylists', 'syncLimit',
-    'aiBackend', 'ollamaUrl', 'ollamaModel', 'openAIKey', 'openAIUrl', 'openAIModel'
-  ], (result) => {
-    // Weights and sliders
-    if (result.historyWeight !== undefined) {
-      historySlider.value = result.historyWeight;
-      historyValue.textContent = parseFloat(result.historyWeight).toFixed(2);
-    }
-    if (result.wlWeight !== undefined && wlSlider) {
-      wlSlider.value = result.wlWeight;
-      wlValue.textContent = parseFloat(result.wlWeight).toFixed(2);
-    }
-    if (result.channelWeight !== undefined && channelSlider) {
-      channelSlider.value = result.channelWeight;
-      channelValue.textContent = parseFloat(result.channelWeight).toFixed(2);
-    }
-    if (result.likedBonus !== undefined) {
-      likedSlider.value = result.likedBonus;
-      updateLikedDisplay(result.likedBonus);
-    }
-    if (result.scanDislikes !== undefined && scanDislikesToggle) {
-      scanDislikesToggle.checked = result.scanDislikes;
-    }
-    if (result.syncAI !== undefined && syncAIToggle) {
-      syncAIToggle.checked = result.syncAI;
-    }
-    if (result.filterMusicVideos !== undefined && filterMusicToggle) {
-      filterMusicToggle.checked = result.filterMusicVideos;
-    }
-    if (result.customPlaylists !== undefined) {
-      customPlaylists = result.customPlaylists;
-    }
-    if (result.syncLimit !== undefined && syncLimitSlider) {
-      syncLimitSlider.value = result.syncLimit;
-      if (syncLimitValue) syncLimitValue.textContent = result.syncLimit;
-    }
-
-    // AI backend text inputs (must be populated before radio change triggers)
-    if (result.ollamaUrl) document.getElementById('ollama-url').value = result.ollamaUrl;
-    if (result.ollamaModel) document.getElementById('ollama-model').value = result.ollamaModel;
-    if (result.openAIKey) document.getElementById('openai-key').value = result.openAIKey;
-    if (result.openAIUrl) document.getElementById('openai-url').value = result.openAIUrl;
-    if (result.openAIModel) document.getElementById('openai-model').value = result.openAIModel;
-
-    if (result.aiBackend) {
-      const radio = document.querySelector(`input[name="ai-backend"][value="${result.aiBackend}"]`);
-      if (radio) {
-        radio.checked = true;
-        ollamaSettings.style.display = result.aiBackend === 'ollama' ? 'block' : 'none';
-        openaiSettings.style.display = result.aiBackend === 'openai' ? 'block' : 'none';
+  chrome.storage.local.get(
+    [
+      'historyWeight',
+      'wlWeight',
+      'channelWeight',
+      'likedBonus',
+      'scanDislikes',
+      'syncAI',
+      'filterMusicVideos',
+      'customPlaylists',
+      'syncLimit',
+      'aiBackend',
+      'ollamaUrl',
+      'ollamaModel',
+      'openAIKey',
+      'openAIUrl',
+      'openAIModel',
+    ],
+    (result) => {
+      // Weights and sliders
+      if (result.historyWeight !== undefined) {
+        historySlider.value = result.historyWeight;
+        historyValue.textContent = parseFloat(result.historyWeight).toFixed(2);
       }
+      if (result.wlWeight !== undefined && wlSlider) {
+        wlSlider.value = result.wlWeight;
+        wlValue.textContent = parseFloat(result.wlWeight).toFixed(2);
+      }
+      if (result.channelWeight !== undefined && channelSlider) {
+        channelSlider.value = result.channelWeight;
+        channelValue.textContent = parseFloat(result.channelWeight).toFixed(2);
+      }
+      if (result.likedBonus !== undefined) {
+        likedSlider.value = result.likedBonus;
+        updateLikedDisplay(result.likedBonus);
+      }
+      if (result.scanDislikes !== undefined && scanDislikesToggle) {
+        scanDislikesToggle.checked = result.scanDislikes;
+      }
+      if (result.syncAI !== undefined && syncAIToggle) {
+        syncAIToggle.checked = result.syncAI;
+      }
+      if (result.filterMusicVideos !== undefined && filterMusicToggle) {
+        filterMusicToggle.checked = result.filterMusicVideos;
+      }
+      if (result.customPlaylists !== undefined) {
+        customPlaylists = result.customPlaylists;
+      }
+      if (result.syncLimit !== undefined && syncLimitSlider) {
+        syncLimitSlider.value = result.syncLimit;
+        if (syncLimitValue) syncLimitValue.textContent = result.syncLimit;
+      }
+
+      // AI backend text inputs (must be populated before radio change triggers)
+      if (result.ollamaUrl) document.getElementById('ollama-url').value = result.ollamaUrl;
+      if (result.ollamaModel) document.getElementById('ollama-model').value = result.ollamaModel;
+      if (result.openAIKey) document.getElementById('openai-key').value = result.openAIKey;
+      if (result.openAIUrl) document.getElementById('openai-url').value = result.openAIUrl;
+      if (result.openAIModel) document.getElementById('openai-model').value = result.openAIModel;
+
+      if (result.aiBackend) {
+        const radio = document.querySelector(
+          `input[name="ai-backend"][value="${result.aiBackend}"]`
+        );
+        if (radio) {
+          radio.checked = true;
+          ollamaSettings.style.display = result.aiBackend === 'ollama' ? 'block' : 'none';
+          openaiSettings.style.display = result.aiBackend === 'openai' ? 'block' : 'none';
+        }
+      }
+
+      renderCustomPlaylists();
+
+      // All settings are now loaded — enable autosave
+      settingsReady = true;
     }
-
-    renderCustomPlaylists();
-
-    // All settings are now loaded — enable autosave
-    settingsReady = true;
-  });
+  );
 
   // Event listeners for inputs to trigger auto-saving
   if (filterMusicToggle) {
@@ -485,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateLikedDisplay(val) {
     const v = parseFloat(val);
     likedValue.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
-    
+
     // Color the value display
     if (v > 0) {
       likedValue.style.color = 'hsl(145, 63%, 52%)';
@@ -496,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  radioButtons.forEach(radio => {
+  radioButtons.forEach((radio) => {
     radio.addEventListener('change', () => {
       ollamaSettings.style.display = radio.value === 'ollama' && radio.checked ? 'block' : 'none';
       openaiSettings.style.display = radio.value === 'openai' && radio.checked ? 'block' : 'none';
@@ -506,7 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Add event listeners to text inputs — use debounced input to prevent data loss on popup close
   const autoSaveInputs = ['ollama-url', 'ollama-model', 'openai-url', 'openai-key', 'openai-model'];
-  autoSaveInputs.forEach(id => {
+  autoSaveInputs.forEach((id) => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('input', debouncedSave);
@@ -523,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   syncBtn.addEventListener('click', () => {
     // Connect keepalive port to prevent Service Worker shutdown
-    keepAlivePort = chrome.runtime.connect({ name: "keepalive" });
+    keepAlivePort = chrome.runtime.connect({ name: 'keepalive' });
 
     syncBtn.disabled = true;
     syncBtn.innerText = chrome.i18n.getMessage('syncingBtn');
@@ -543,11 +596,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (syncStatusMsg) syncStatusMsg.innerText = chrome.i18n.getMessage('scrapingData');
       }
 
-      chrome.runtime.sendMessage({ 
+      chrome.runtime.sendMessage({
         type: 'SYNC_TASTE_MATRIX',
         useAI: syncAI,
         scanDislikes: scanDislikes,
-        syncLimit: syncLimit
+        syncLimit: syncLimit,
       });
     });
   });
@@ -556,16 +609,18 @@ document.addEventListener('DOMContentLoaded', () => {
   async function updateDbStats() {
     const statsEl = document.getElementById('db-stats');
     if (!statsEl) return;
-    
+
     try {
       const profile = await getItem('tasteMatrix', 'master');
       if (profile) {
         const lastSyncStr = new Date(profile.lastSync).toLocaleString();
         let playlistsStatsHtml = '';
         if (profile.customPlaylistsData && profile.customPlaylistsData.length > 0) {
-          playlistsStatsHtml = '<div class="custom-playlists-stats" style="margin-top: 0.8rem; border-top: 1px solid var(--surface-border); padding-top: 0.8rem; font-size: 0.8rem; color: var(--text-muted);">';
-          playlistsStatsHtml += '<div style="font-weight: 600; margin-bottom: 0.4rem; color: var(--text-main);">Custom Playlists Synced:</div>';
-          profile.customPlaylistsData.forEach(pl => {
+          playlistsStatsHtml =
+            '<div class="custom-playlists-stats" style="margin-top: 0.8rem; border-top: 1px solid var(--surface-border); padding-top: 0.8rem; font-size: 0.8rem; color: var(--text-muted);">';
+          playlistsStatsHtml +=
+            '<div style="font-weight: 600; margin-bottom: 0.4rem; color: var(--text-main);">Custom Playlists Synced:</div>';
+          profile.customPlaylistsData.forEach((pl) => {
             playlistsStatsHtml += `<div class="stats-item-custom" style="display:flex; justify-content:space-between; margin-bottom:0.2rem;">
               <span title="${escapeHtml(pl.playlistId)}" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 60%;">ID: ${escapeHtml(pl.playlistId)}</span>
               <strong>${pl.count || 0} videos</strong>
@@ -574,6 +629,7 @@ document.addEventListener('DOMContentLoaded', () => {
           playlistsStatsHtml += '</div>';
         }
 
+        /* eslint-disable-next-line no-unsanitized/property */
         statsEl.innerHTML = `
           <div class="stats-grid">
             <div class="stats-item"><strong>Watched:</strong> ${profile.historyCount || 0}</div>
@@ -590,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         checkAiWarning(null);
       }
     } catch (err) {
-      console.error("YtAlgoRebel: Failed to load DB stats:", err);
+      console.error('YtAlgoRebel: Failed to load DB stats:', err);
       statsEl.innerHTML = `<div class="no-profile">Error loading stats.</div>`;
     }
   }
@@ -598,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function checkAiWarning(profile) {
     const warningCard = document.getElementById('ai-warning-card');
     if (!warningCard) return;
-    
+
     if (aiToggle.checked) {
       const hasAI = profile && profile.likesEmbeddings && profile.likesEmbeddings.length > 0;
       if (!hasAI) {
@@ -649,11 +705,13 @@ document.addEventListener('DOMContentLoaded', () => {
         keepAlivePort = null;
       }
 
-      syncBtn.innerText = message.success ? chrome.i18n.getMessage('syncCompleted') : chrome.i18n.getMessage('syncFailed');
+      syncBtn.innerText = message.success
+        ? chrome.i18n.getMessage('syncCompleted')
+        : chrome.i18n.getMessage('syncFailed');
       if (message.success) syncBtn.style.background = 'hsl(145, 63%, 42%)';
-      
+
       updateDbStats(); // Refresh stats immediately
-      
+
       setTimeout(() => {
         syncBtn.disabled = false;
         syncBtn.innerText = chrome.i18n.getMessage('syncBtn');
@@ -664,7 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const scoreProgressText = document.getElementById('score-progress');
       const scoreTotalText = document.getElementById('score-total');
       const scoreProgressBar = document.getElementById('score-progress-bar');
-      
+
       if (scoreProgressText && scoreTotalText && scoreProgressBar) {
         scoreProgressText.textContent = message.current;
         scoreTotalText.textContent = message.total;

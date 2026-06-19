@@ -2,15 +2,25 @@
   "name": "ytalgorebel",
   "version": "1.0.0",
   "description": "YouTube Algorithm Rebel",
-  "main": "index.js",
   "scripts": {
     "build": "webpack --mode production",
     "watch": "webpack --mode development --watch",
-    "lint": "eslint extension/src/ --ext .js"
+    "lint": "eslint extension/src/ --ext .js",
+    "format": "prettier --write \"**/*.{js,json,md,css}\"",
+    "knip": "knip",
+    "prepare": "husky"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.56.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-no-unsanitized": "^4.0.2",
+    "eslint-plugin-security": "^4.0.1",
+    "eslint-plugin-sonarjs": "^4.0.3",
+    "husky": "^9.1.7",
+    "knip": "^6.17.1",
+    "lint-staged": "^17.0.7",
+    "prettier": "^3.8.4",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4"
   },

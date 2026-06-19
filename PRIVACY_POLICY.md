@@ -6,7 +6,8 @@ YtAlgoRebel ("we", "our", or "us") is committed to protecting your privacy. This
 
 ## 1. Information Collection and Use
 
-YtAlgoRebel is designed to be an uncompromisingly local, privacy-first AI reranker. 
+YtAlgoRebel is designed to be an uncompromisingly local, privacy-first AI reranker.
+
 - **No External Servers**: We do not send your personal data, browsing history, or YouTube usage data to any external servers or third-party services by default.
 - **Local Processing**: All data processing, including AI embeddings and reranking logic, happens entirely locally on your machine within your browser, or via a local LLM instance (e.g., Ollama) if configured by you.
 - **Third-Party API Usage (Bring Your Own Key)**: If you choose to configure YtAlgoRebel to use an external OpenAI-compatible API by providing your own API key (BYOK), your data (such as video titles, descriptions, or search queries) will be sent to that third-party provider. In this case, the data processing is no longer strictly local. **It is entirely your choice and responsibility** to share your data with these providers, and you are subject to their respective privacy policies. YtAlgoRebel assumes no responsibility for data handled by external APIs you configure.
@@ -14,6 +15,7 @@ YtAlgoRebel is designed to be an uncompromisingly local, privacy-first AI rerank
 ## 2. Permissions Justification
 
 To function correctly, the extension requires the following permissions:
+
 - **`storage`**: Used to save your local preferences and configuration settings.
 - **`scripting` & `tabs`**: Necessary to interact with YouTube pages in order to read video titles/descriptions for reranking, and to inject the modified algorithm UI seamlessly.
 - **Host Permissions (`*://*.youtube.com/*`, `*://myactivity.google.com/*`)**: Required to understand your current YouTube context and history (if applicable) so the local AI model can accurately determine your preferences.
