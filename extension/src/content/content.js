@@ -1,4 +1,4 @@
-import { scrapeTasteData } from '../background/scraper.js';
+import { scrapeTasteData } from 'tubezero';
 
 // content.js — Runs in isolated world on YouTube pages
 // Responsibilities:
@@ -193,7 +193,8 @@ function scrapeAllVideosFromDOM() {
         if (!link) return;
 
         const href = link.getAttribute('href') || '';
-        const videoIdMatch = href.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || href.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+        const videoIdMatch =
+          href.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || href.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
         if (!videoIdMatch) return;
 
         const id = videoIdMatch[1];

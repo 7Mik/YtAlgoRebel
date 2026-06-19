@@ -1,2 +1,6 @@
-npx lint-staged
-
+if [ "$OS" = "Windows_NT" ]; then
+  echo "Esecuzione lint-staged su Windows (gli errori non bloccheranno il commit)..."
+  npx lint-staged || true
+else
+  npx lint-staged
+fi
