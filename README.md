@@ -8,6 +8,17 @@
   <h3>The AI-Powered YouTube Subscription Reranker</h3>
   <p>Take back control of your YouTube feed. YtAlgoRebel runs entirely in your browser, uses local AI to understand your actual tastes, and violently penalizes clickbait.</p>
 
+  <br/>
+  
+  <a href="https://chromewebstore.google.com/detail/ytalgorebel/gcmclhcpdccphdckogeaaihkjmjgfcof?authuser=0&hl=it" target="_blank">
+    <img src="https://img.shields.io/chrome-web-store/v/gcmclhcpdccphdckogeaaihkjmjgfcof?color=blue&label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white&style=for-the-badge" alt="Chrome Web Store" />
+  </a>
+  <a href="https://addons.mozilla.org/it/firefox/addon/ytalgorebel/" target="_blank">
+    <img src="https://img.shields.io/amo/v/ytalgorebel?color=orange&label=Firefox%20Add-ons&logo=firefox&logoColor=white&style=for-the-badge" alt="Mozilla Add-on" />
+  </a>
+
+<br/><br/>
+
 [**Installation**](#installation) •
 [**How It Works**](#how-it-works) •
 [**Philosophy**](#project-philosophy) •
@@ -23,7 +34,7 @@ YouTube's algorithm prioritizes engagement and watch time. This creates a feed s
 
 **YtAlgoRebel** is an open-source browser extension that solves this by:
 
-1. **Never using official YouTube APIs:** We avoid restrictive quotas by intercepting internal YouTube traffic natively.
+1. **Never using official YouTube APIs:** We avoid restrictive quotas by intercepting internal YouTube traffic natively and using [Tubezero](https://github.com/7Mik/tubezero) for lightweight metadata extractions.
 2. **100% Local AI:** Your data stays yours. We calculate your "Taste Matrix" and rank videos using WebAssembly (`transformers.js`) or your local Ollama instance. No remote cloud processing.
 3. **The Anti-Clickbait Engine:** Our Cosine Similarity reranker aggressively identifies and penalizes typical clickbait syntax and semantics.
 
@@ -44,8 +55,7 @@ YtAlgoRebel/
 │       ├── background/    # Background scripts (Service Worker)
 │       │   ├── background.js # Coordinates extension messaging & tabs
 │       │   ├── ai.js         # Embedding generator (WASM transformers.js / Ollama / OpenAI)
-│       │   ├── reranker.js   # Scoring engine & Clickbait penalty heuristics
-│       │   └── scraper.js    # InnerTube crawler & Google My Activity dislikes scraper
+│       │   └── reranker.js   # Scoring engine & Clickbait penalty heuristics
 │       ├── content/       # Content scripts running in DOM pages
 │       │   ├── content.js    # Isolated script: DOM scraper & video highlighter
 │       │   └── inject.js     # Main-world script: overrides fetch/XHR to intercept payloads
@@ -55,15 +65,22 @@ YtAlgoRebel/
 │       │   └── popup.js      # Controller script for dashboard interactions
 │       └── utils/         # Helper functions
 │           └── db.js         # IndexedDB database manager
-├── dist/                  # Built assets folder loaded into Chrome (generated)
+├── dist/                  # Built assets folder loaded into browsers (generated)
 ├── webpack.config.js      # Webpack bundler configuration
-├── package.json           # Node dependencies & build script definitions
+├── package.json           # Node dependencies (including tubezero for scraping) & build scripts
 └── README.md              # Project overview & documentation
 ```
 
 ## 🚀 Installation
 
-### Prerequisites
+### Stores
+
+You can install the official releases directly from the stores:
+
+- [Chrome Web Store](https://chromewebstore.google.com/detail/ytalgorebel/gcmclhcpdccphdckogeaaihkjmjgfcof?authuser=0&hl=it)
+- [Firefox Add-ons](https://addons.mozilla.org/it/firefox/addon/ytalgorebel/)
+
+### Prerequisites for building locally
 
 - Node.js (v18+)
 - (Optional) [Ollama](https://ollama.com/) running locally for high-performance embeddings.
@@ -72,7 +89,7 @@ YtAlgoRebel/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/YtAlgoRebel.git
+   git clone https://github.com/7Mik/YtAlgoRebel.git
    cd YtAlgoRebel
    ```
 2. Install dependencies:
@@ -87,6 +104,7 @@ YtAlgoRebel/
    - Go to `chrome://extensions/`
    - Enable **Developer mode**
    - Click **Load unpacked** and select the `dist/` directory.
+   - For Firefox, go to `about:debugging#/runtime/this-firefox` and select `dist/manifest.json`.
 
 ## 🛠 Configuration (Ollama vs WebAssembly)
 
@@ -104,6 +122,7 @@ If you have **Ollama** installed:
 - [x] Reverse-engineer YouTube internal feed endpoints.
 - [x] Integrate WebAssembly embeddings in background scripts.
 - [x] Build premium Vanilla CSS popup dashboard.
+- [x] Integrate Tubezero for lightweight YouTube extraction.
 - [ ] Direct DOM injection to replace YouTube's native grid natively.
 - [ ] Add cross-device sync for the Taste Matrix (E2E Encrypted).
 - [ ] Auto-Categorization (e.g., "Tech", "Gaming", "News") based on embeddings clustering.
@@ -114,4 +133,4 @@ We welcome rebels! Check out our [CONTRIBUTING.md](./CONTRIBUTING.md) to see how
 
 ## 📜 License
 
-MIT License - Because algorithms should be open.
+AGPL-3.0 License - Because algorithms should be open, and user modifications should remain free.
