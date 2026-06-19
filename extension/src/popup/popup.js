@@ -1,5 +1,16 @@
 import { getItem } from '../utils/db.js';
 
+const escapeHtml = (str) => {
+  if (typeof str !== 'string') return '';
+  return str.replace(/[&<>'"]/g, (tag) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[tag] || tag));
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   let keepAlivePort = null;
   // ── i18n Initialization ──
@@ -221,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
       /* eslint-disable-next-line no-unsanitized/property */
       el.innerHTML = `
         <div class="video-rank">#${index + 1}</div>
-        <img class="video-thumb" src="${thumbSrc}" alt="" loading="lazy" />
+        <img class="video-thumb" src="${escapeHtml(thumbSrc)}" alt="" loading="lazy" />
         <div class="video-info">
           <div class="video-title" title="${escapeHtml(video.title)}">${escapeHtml(video.title)}</div>
           <div class="video-channel">${escapeHtml(video.channel)}</div>

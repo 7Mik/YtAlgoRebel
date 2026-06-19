@@ -20,42 +20,35 @@ class EmbeddingPipeline {
 }
 
 export const getAIConfig = async () => {
-  return new Promise((resolve) => {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(
-        [
-          'useOllama',
-          'ollamaUrl',
-          'ollamaModel',
-          'useOpenAI',
-          'openAIKey',
-          'openAIUrl',
-          'openAIModel',
-        ],
-        (result) => {
-          resolve({
-            useOllama: result.useOllama || false,
-            ollamaUrl: result.ollamaUrl || 'http://localhost:11434',
-            ollamaModel: result.ollamaModel || 'mxbai-embed-large:latest',
-            useOpenAI: result.useOpenAI || false,
-            openAIKey: result.openAIKey || '',
-            openAIUrl: result.openAIUrl || 'https://api.openai.com/v1',
-            openAIModel: result.openAIModel || 'text-embedding-3-small',
-          });
-        }
-      );
-    } else {
-      resolve({
-        useOllama: false,
-        ollamaUrl: 'http://localhost:11434',
-        ollamaModel: 'mxbai-embed-large:latest',
-        useOpenAI: false,
-        openAIKey: '',
-        openAIUrl: 'https://api.openai.com/v1',
-        openAIModel: 'text-embedding-3-small',
-      });
-    }
-  });
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    const result = await chrome.storage.local.get([
+      'useOllama',
+      'ollamaUrl',
+      'ollamaModel',
+      'useOpenAI',
+      'openAIKey',
+      'openAIUrl',
+      'openAIModel',
+    ]);
+    return {
+      useOllama: result.useOllama || false,
+      ollamaUrl: result.ollamaUrl || 'http://localhost:11434',
+      ollamaModel: result.ollamaModel || 'mxbai-embed-large:latest',
+      useOpenAI: result.useOpenAI || false,
+      openAIKey: result.openAIKey || '',
+      openAIUrl: result.openAIUrl || 'https://api.openai.com/v1',
+      openAIModel: result.openAIModel || 'text-embedding-3-small',
+    };
+  }
+  return {
+    useOllama: false,
+    ollamaUrl: 'http://localhost:11434',
+    ollamaModel: 'mxbai-embed-large:latest',
+    useOpenAI: false,
+    openAIKey: '',
+    openAIUrl: 'https://api.openai.com/v1',
+    openAIModel: 'text-embedding-3-small',
+  };
 };
 
 export const generateEmbeddings = async (text, progressCallback) => {
@@ -84,8 +77,9 @@ export const generateEmbeddings = async (text, progressCallback) => {
 
         if (response.ok) {
           const data = await response.json();
-          if (data.data && data.data.length > 0) {
-            return data.data[0].embedding;
+          const embedding = data?.data?.[0]?.embedding;
+          if (embedding) {
+            return embedding;
           }
         } else {
           console.warn('OpenAI API failed, status:', response.status);
@@ -119,7 +113,7 @@ export const generateEmbeddings = async (text, progressCallback) => {
 
         if (response.ok) {
           const data = await response.json();
-          if (data.embedding) {
+          if (data?.embedding) {
             return data.embedding;
           }
         } else {

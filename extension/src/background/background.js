@@ -144,20 +144,19 @@ async function scrapeAllFromMyActivity() {
 /**
  * Read scoring weights from chrome.storage.local.
  */
-function getWeights() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(
-      ['historyWeight', 'likedBonus', 'wlWeight', 'channelWeight'],
-      (result) => {
-        resolve({
-          historyWeight: result.historyWeight !== undefined ? result.historyWeight : 0.5,
-          likedBonus: result.likedBonus !== undefined ? result.likedBonus : 0.5,
-          wlWeight: result.wlWeight !== undefined ? result.wlWeight : 0.5,
-          channelWeight: result.channelWeight !== undefined ? result.channelWeight : 0.5,
-        });
-      }
-    );
-  });
+async function getWeights() {
+  const result = await chrome.storage.local.get([
+    'historyWeight',
+    'likedBonus',
+    'wlWeight',
+    'channelWeight',
+  ]);
+  return {
+    historyWeight: result.historyWeight !== undefined ? result.historyWeight : 0.5,
+    likedBonus: result.likedBonus !== undefined ? result.likedBonus : 0.5,
+    wlWeight: result.wlWeight !== undefined ? result.wlWeight : 0.5,
+    channelWeight: result.channelWeight !== undefined ? result.channelWeight : 0.5,
+  };
 }
 
 /**

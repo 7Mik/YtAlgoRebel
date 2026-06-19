@@ -5,7 +5,7 @@
 
   window.fetch = async function (...args) {
     const response = await originalFetch.apply(this, args);
-    const url = typeof args[0] === 'string' ? args[0] : args[0] && args[0].url ? args[0].url : '';
+    const url = typeof args[0] === 'string' ? args[0] : (args[0] && (args[0].url || args[0].href)) || '';
 
     if (url.includes('/youtubei/v1/browse') || url.includes('/youtubei/v1/next')) {
       try {

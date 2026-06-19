@@ -193,7 +193,7 @@ function scrapeAllVideosFromDOM() {
         if (!link) return;
 
         const href = link.getAttribute('href') || '';
-        const videoIdMatch = href.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+        const videoIdMatch = href.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || href.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
         if (!videoIdMatch) return;
 
         const id = videoIdMatch[1];

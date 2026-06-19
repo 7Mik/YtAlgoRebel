@@ -151,7 +151,7 @@ export function tokenize(text) {
   if (!text) return [];
   return text
     .toLowerCase()
-    .replace(/[^\w\s'-]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')
     .split(/\s+/)
     .filter((w) => w.length >= 2 && !STOPWORDS.has(w));
 }

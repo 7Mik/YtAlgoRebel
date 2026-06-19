@@ -1,1 +1,5 @@
-npx lint-staged
+if [ "$(uname)" = "Linux" ]; then
+  npx lint-staged
+else
+  echo "Not on Linux (WSL not found/enabled), skipping lint-staged."
+fi
